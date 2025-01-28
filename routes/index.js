@@ -18,4 +18,7 @@ router.use('/moduleaccess', module_access);
 const module_user_access = require('./api/module_user_access');
 router.use('/moduleuseraccess', module_user_access);
 
+// const company = require('./api/company');
+// router.use('/company', company);
+
 module.exports = router;
