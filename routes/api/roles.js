@@ -6,11 +6,13 @@ const validations = require('../../modules/role/roleValidation');
 const Modulevalidations = require('../../modules/module_user_access/module_user_accessValidation');
 const { authorization, authentication } = require('../../middleware/auth.middleware');
 
+// const { sanitize, validate } = validations.sanitizeAndValidate(['name']);
+// router.post('/role',  sanitize, validate, dModule.AddRoles);
 
 // Role Apis
 router.get('/role', authentication, authorization, dModule.GetRoles);
 router.get('/roleview', authentication,authorization, dModule.GetRoleDetail);
-router.post('/role', authentication, authorization, validations.sanitizeRole, validations.validateRole, dModule.AddRoles);
+router.post('/role', validations.sanitizeRole, validations.validateRole, dModule.AddRoles);
 router.get('/delrole', authentication,authorization, dModule.DeleteRole);
 router.get('/role-search', authentication, dModule.GetRoleSearch);
 

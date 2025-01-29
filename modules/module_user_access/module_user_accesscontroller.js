@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 
-const   module_acccessSch  = require('./module_user_accessschema');
+const   module_acccessSch  = require('../../schema/module_user_accessschema');
 const otherHelper = require('../../helper/others.helper');
 const module_access = require('./module_user_accessConfig');
 const module_user_accessController = {};

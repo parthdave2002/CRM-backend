@@ -1,10 +1,9 @@
 const httpStatus = require('http-status');
 const { getAccessData } = require('../../helper/Access.helper');
-const   module_acccessSch  = require('./module_accessschema');
+const   module_acccessSch  = require('../../schema/module_accessschema');
 const otherHelper = require('../../helper/others.helper');
 const module_access = require('./module_accessConfig');
 const module_accessController = {};
-
 
 module_accessController.getModule = async (req, res, next) => {
   const query = { sub_module_id: { $eq: req.query.id } };

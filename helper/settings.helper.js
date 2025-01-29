@@ -1,4 +1,4 @@
-const settingSch = require('../modules/setting/settingSchema');
+const settingSch = require('../schema/settingSchema');
 
 module.exports.getSetting = async (type, sub_type, key) => {
   try {

@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const templateSch = require('./templateSchema');
+const templateSch = require('../../schema/templateSchema');
 const otherHelper = require('../../helper/others.helper');
 const templateConfig = require('./templateConfig');
 const isEmpty = require('../../validation/isEmpty');

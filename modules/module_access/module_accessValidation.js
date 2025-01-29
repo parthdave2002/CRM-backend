@@ -4,7 +4,7 @@ const menuConfig = require('./module_accessConfig');
 const otherHelper = require('../../helper/others.helper');
 const sanitizeHelper = require('../../helper/sanitize.helper');
 const validateHelper = require('../../helper/validate.helper');
-const  menuSch  = require('./module_accessschema')
+const  menuSch  = require('../../schema/module_accessschema')
 const validation = {};
 
 validation.sanitize = (req, res, next) => {

@@ -5,8 +5,8 @@ const otherHelper = require('../../helper/others.helper');
 const sanitizeHelper = require('../../helper/sanitize.helper');
 const validateHelper = require('../../helper/validate.helper');
 const roleConfig = require('./companyConfig');
-const moduleGroupSch = require('./moduleGroupSchema');
-const moduleAccessSch = require('./moduleSchema');
+const moduleGroupSch = require('../../schema/moduleGroupSchema');
+const moduleAccessSch = require('../../schema/moduleSchema');
 const roleSch = require('./companySchema');
 const validations = {};
 
