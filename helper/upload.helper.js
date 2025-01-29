@@ -8,6 +8,7 @@ const uploaderHelper = {};
 
 let mimeType = {
   'image/png': 'png',
+  'image/webp': 'webp',
   'image/jpeg': 'jpeg',
   'image/jpg': 'jpg',
   'image/svg': 'svg',
@@ -21,10 +22,9 @@ uploaderHelper.uploadFiles = (destinationPath, uploadTYpe, fieldData) => {
   var storage = multer.diskStorage({
     destination: destinationPath,
     filename: async (req, file, cb) => {
-      const randomString = await otherHelper.generateRandomHexString(15);
-      cb(null, randomString + '-' + file.originalname);
+      cb(null, Date.now() + '-' + file.originalname);
     },
-  });
+  });  
   const uploader = multer({
     storage: storage,
     fileFilter: function (req, file, callback) {

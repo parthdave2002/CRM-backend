@@ -1,8 +1,8 @@
 'use strict';
 const httpStatus = require('http-status');
 const otherHelper = require('./others.helper');
-const module_user_accessSchema = require('../modules/module_user_access/module_user_accessschema');
-const module_access = require('../modules/module_access/module_accessschema');
+const module_user_accessSchema = require('../schema/module_user_accessschema');
+const module_access = require('../schema/module_accessschema');
 
 const AccessHelper = {};
 

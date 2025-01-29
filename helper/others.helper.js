@@ -67,7 +67,6 @@ otherHelper.parseFilters = (req, defaults, is_deleted) => {
   let page;
   let size;
   let sortQuery = { _id: -1 };
-  let sort_key;
   let searchQuery = {};
   let populate = [];
   let selectQuery = { __v: 0 };

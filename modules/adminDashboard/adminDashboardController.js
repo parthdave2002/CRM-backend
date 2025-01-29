@@ -1,9 +1,9 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const apiCallHelper = require('../../helper/apicall.helper');
-const userSch = require('./../user/userSchema');
-const bugSch = require('./../bug/bugSchema');
-const roleSch = require('./../role/roleSchema');
+const userSch = require('../../schema/userSchema');
+const bugSch = require('../../schema/bugSchema');
+const roleSch = require('../../schema/roleSchema');
 
 
 const adminDashboardController = {};

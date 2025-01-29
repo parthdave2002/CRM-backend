@@ -1,15 +1,14 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
-const roleSch = require('./roleSchema');
-const moduleSch = require('./moduleSchema');
-const moduleGroupSch = require('./moduleGroupSchema');
+const roleSch = require('../../schema/roleSchema');
+const moduleSch = require('../../schema/moduleSchema');
+const accessSch = require('../../schema/accessSchema');
+const moduleUserAccessSch = require('../../schema/module_user_accessschema');
+const moduleGroupSch = require('../../schema/moduleGroupSchema');
+
 const { getAccessData } = require('../../helper/Access.helper');
-const accessSch = require('./accessSchema');
-const moduleUserAccessSch = require('../module_user_access/module_user_accessschema');
 const roleConfig = require('./roleConfig');
-const roleSchema = require('./roleSchema');
-const accessSchema = require('./accessSchema');
-const moduleSchema = require('./moduleSchema');
+
 const roleController = {};
 
 // Role API Code End
@@ -50,6 +49,8 @@ roleController.GetRoleDetail = async (req, res, next) => {
 };
 
 roleController.AddRoles = async (req, res, next) => {
+  console.log("Controller calllll");
+  
   try {
     const role = req.body;
     if (role.id) {

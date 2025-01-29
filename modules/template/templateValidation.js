@@ -4,7 +4,7 @@ const otherHelper = require('../../helper/others.helper');
 const sanitizeHelper = require('../../helper/sanitize.helper');
 const validateHelper = require('../../helper/validate.helper');
 const templateConfig = require('./templateConfig');
-const templateSch = require('./templateSchema');
+const templateSch = require('../../schema/templateSchema');
 const templateValidation = {};
 
 templateValidation.sanitized = (req, res, next) => {

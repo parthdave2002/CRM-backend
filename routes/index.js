@@ -18,7 +18,16 @@ router.use('/moduleaccess', module_access);
 const module_user_access = require('./api/module_user_access');
 router.use('/moduleuseraccess', module_user_access);
 
-// const company = require('./api/company');
-// router.use('/company', company);
+const company = require('./api/company');
+router.use('/company', company);
+
+const admincategory = require('./api/adminCategory');
+router.use('/category', admincategory);
+
+const adminpackingtype = require('./api/adminPackingType');
+router.use('/packing-type', adminpackingtype);
+
+const adminpacking = require('./api/adminPacking');
+router.use('/packing', adminpacking);
 
 module.exports = router;

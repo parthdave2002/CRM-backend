@@ -1,5 +1,5 @@
-const userSch = require('./userSchema');
-const roleSch = require('../role/roleSchema');
+const userSch = require('../../schema/userSchema');
+const roleSch = require('../../schema/roleSchema');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('./userConfig');
@@ -8,13 +8,12 @@ const emailHelper = require('./../../helper/email.helper');
 const twoFaHelper = require('./../../helper/2fa.helper');
 const renderMail = require('./../template/templateController').internal;
 const otherHelper = require('../../helper/others.helper');
-const accessSch = require('../role/accessSchema');
-const moduleSch = require('../role/moduleSchema');
+const accessSch = require('../../schema/accessSchema');
+const moduleSch = require('../../schema/moduleSchema');
 const loginLogs = require('./loginlogs/loginlogController').internal;
 const { getSetting } = require('../../helper/settings.helper');
 const { getAccessData } = require('../../helper/Access.helper');
 const userConfig = require('./userConfig');
-const module_accessSchema = require('../module_access/module_accessschema');
 const userController = {};
 
 // User List Api Code Start

@@ -5,9 +5,9 @@ const otherHelper = require('../../helper/others.helper');
 const sanitizeHelper = require('../../helper/sanitize.helper');
 const validateHelper = require('../../helper/validate.helper');
 const roleConfig = require('./roleConfig');
-const moduleGroupSch = require('./moduleGroupSchema');
-const moduleAccessSch = require('./moduleSchema');
-const roleSch = require('./roleSchema');
+const moduleGroupSch = require('../../schema/moduleGroupSchema');
+const moduleAccessSch = require('../../schema/moduleSchema');
+const roleSch = require('../../schema/roleSchema');
 const validations = {};
 
 validations.validateRole = async (req, res, next) => {
