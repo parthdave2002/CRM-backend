@@ -30,4 +30,7 @@ router.use('/packing-type', adminpackingtype);
 const adminpacking = require('./api/adminPacking');
 router.use('/packing', adminpacking);
 
+const productdata = require('./api/product');
+router.use('/product', productdata);
+
 module.exports = router;
