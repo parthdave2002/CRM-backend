@@ -9,6 +9,10 @@ const bannerController = {};
 bannerController.getAllBannerList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    if (req.query.search) {
+      const searchRegex = { $regex: req.query.search, $options: 'i' };
+      searchQuery = { $or: [{ name: searchRegex }] };
+    }
     const pulledData = await otherHelper.getQuerySendResponse(bannerSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Banner Data get successfully", page, size, pulledData.totalData);
   } catch (err) {

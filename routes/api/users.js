@@ -18,34 +18,8 @@ router.post('/add-user',uploadHelper.uploadFiles('public/user', 'single', 'user_
 // /USERlIST API CODE END
 
 
-router.post('/', userModule.CheckMail);
-router.get('/mfa', authentication, userModule.getMultiFAStatus);
-router.post('/mfa/email', authentication, userModule.postEmailFAStatus);
-router.post('/mfa/ga', authentication, userModule.postGoogleFAStatus);
-router.post('/mfa/ga/verify', authentication, userModule.verifyGoogleFAStatus);
-/**
- * @route GET api/user/grby
- * @description Check user is returning user group by or new  || for admin
- * @access Public
- */
-router.get('/grby', authentication, authorization, userModule.GetAllUserGroupBy);
-
-
-
 router.post('/detail/:id', authentication, authorization, uploadHelper.uploadFiles('public/user/', 'single', 'file'), validateRegisterInput.sanitizeUpdateProfile, validateRegisterInput.validateUpdateProfile, userModule.UpdateUserDetail);
 
-/**
- * @route POST api/user/change
- * @description update basic information of user
- * @access User
- */
-
-
-/**
- * @route POST api/user/changepw
- * @description Update user is returning user or new
- * @access Public
- */
 router.post('/changepw', authentication, validateRegisterInput.sanitizeAdd, validateRegisterInput.validateAdd, userModule.PostUserPwd);
 
 /**
@@ -55,25 +29,6 @@ router.post('/changepw', authentication, validateRegisterInput.sanitizeAdd, vali
  */
 router.post('/register', validateRegisterInput.sanitizeRegister, validateRegisterInput.validateRegisterInput, getClientInfo, userModule.Register);
 
-/**
- * @route POST api/user/login/google/
- * @description Register user route
- * @access Public
- */
-router.post('/login/google/', isPublicGoogleRegistrationAllow, getClientInfo, passport.authenticate('google-token'), userModule.loginGOath);
-
-/**
- * @route POST api/user/login/facebook/
- * @description Register user route
- * @access Public
- */
-router.post('/login/facebook/', getClientInfo, passport.authenticate('facebook-token'), userModule.loginGOath);
-/**
- * @route POST api/user/login/github
- * @description Login user using Github
- * @access Public
- */
-router.post('/login/github/', getClientInfo, passport.authenticate('github-token'), userModule.loginGOath);
 /**
  * @route POST api/user/register/admin
  * @description Register user route || for admin

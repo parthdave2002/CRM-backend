@@ -88,7 +88,8 @@ userController.PostUser = async (req, res, next) => {
           profilePic = req.file.filename; 
       }
 
-      const existingUser = await userSch.findOne({email : user.email})
+      let email = req.body.email && req.body.email.toLowerCase();
+      const existingUser = await userSch.findOne({email : email})
       if(existingUser){
         return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user email already exist!', null);
       }
@@ -136,85 +137,6 @@ userController.PostUserPwd = async (req, res, next) => {
       const userSave = await newUser.save();
       return otherHelper.sendResponse(res, httpStatus.OK, true, userSave, null, 'user add success!', null);
     }
-  } catch (err) {
-    next(err);
-  }
-};
-
-userController.getMultiFAStatus = async (req, res, next) => {
-  try {
-    const user = await userSch.findById(req.user.id);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, { multi_fa: { email: { is_authenticate: user.multi_fa.email.is_authenticate }, google_authenticate: { is_authenticate: user.multi_fa.google_authenticate.is_authenticate } } }, null, 'Two FA status', null);
-  } catch (err) {
-    next(err);
-  }
-};
-
-userController.postEmailFAStatus = async (req, res, next) => {
-  try {
-    const is_authenticate = req.body.is_authenticate;
-    const user = await userSch.findByIdAndUpdate(req.user.id, { $set: { 'multi_fa.email.is_authenticate': is_authenticate } });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, { is_authenticate: is_authenticate }, null, 'Two FA status', null);
-  } catch (err) {
-    next(err);
-  }
-};
-
-userController.postGoogleFAStatus = async (req, res, next) => {
-  try {
-    const is_authenticate = req.body.is_authenticate;
-    let auth_secret = '';
-    if (is_authenticate) {
-      const otp = await twoFaHelper.generateMultiFactorAuthCode(req);
-      auth_secret = otp.secret;
-      const user = await userSch.findByIdAndUpdate(req.user.id, { $set: { 'multi_fa.google_authenticate.setup': is_authenticate, 'multi_fa.google_authenticate.auth_secret_setup': auth_secret } });
-      return otherHelper.sendResponse(res, httpStatus.OK, true, { email: req.user.email, multi_fa: { google_authenticate: { auth_secret_setup: auth_secret, setup: is_authenticate, qrcode: otp.qrcode } } }, null, 'Two FA status', null);
-    } else {
-      const user = await userSch.findByIdAndUpdate(req.user.id, { $set: { 'multi_fa.google_authenticate.is_authenticate': is_authenticate } });
-      return otherHelper.sendResponse(res, httpStatus.OK, true, { email: req.user.email, multi_fa: { google_authenticate: { is_authenticate: is_authenticate } } }, null, 'Two FA status', null);
-    }
-  } catch (err) {
-    next(err);
-  }
-};
-
-userController.verifyGoogleFAStatus = async (req, res, next) => {
-  try {
-    let user = await userSch.findById(req.user.id);
-    const code = req.body.code;
-    if (user.multi_fa.google_authenticate.setup) {
-      const otp = await twoFaHelper.verifyMultiFactorAuthCode(code, user.multi_fa.google_authenticate.auth_secret_setup);
-      if (otp) {
-        user = await userSch.findByIdAndUpdate(req.user.id, { $set: { 'multi_fa.google_authenticate.is_authenticate': true, 'multi_fa.google_authenticate.setup': false, 'multi_fa.google_authenticate.auth_secret': user.multi_fa.google_authenticate.auth_secret_setup, 'multi_fa.google_authenticate.auth_secret_setup': '' } });
-        return otherHelper.sendResponse(res, httpStatus.OK, true, { is_authenticate: true }, null, 'Two FA setup success', null);
-      } else {
-        return otherHelper.sendResponse(res, httpStatus.UNAUTHORIZED, false, { code: 'Code mismatch' }, null, 'Please try another code', null);
-      }
-    }
-    return otherHelper.sendResponse(res, httpStatus.INTERNAL_SERVER_ERROR, false, { code: '' }, null, 'Something went wrong', null);
-  } catch (err) {
-    next(err);
-  }
-};
-
-userController.CheckMail = async (req, res) => {
-  let errors = {};
-  const email = req.body.email.toLowerCase();
-  const user = await userSch.findOne({ email });
-  const data = { email };
-  if (!user) {
-    errors.email = 'Mail not found';
-    return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, data, errors, errors.email, null);
-  }
-  return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, 'Mail found', null);
-};
-
-userController.GetAllUserGroupBy = async (req, res, next) => {
-  try {
-    const role = await roleSch.find({ is_deleted: false }).select('role_title');
-    let user = await userSch.find({ is_deleted: false });
-    let totalData = await userSch.countDocuments({ is_deleted: false });
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, { role, user }, 'users by group by get success!', 1, 1, totalData);
   } catch (err) {
     next(err);
   }
@@ -436,40 +358,6 @@ userController.ResendVerificationCode = async (req, res, next) => {
         }
       }
     }
-  } catch (err) {
-    next(err);
-  }
-};
-
-userController.VerifyServerMail = async (req, res, next) => {
-  try {
-    const { id, code } = req.params;
-    const user = await userSch.findOne({ _id: id, email_verification_code: code });
-    if (!user) {
-      return res.redirect(302, 'http://localhost:5460?verify=false');
-    }
-    const d = await userSch.findByIdAndUpdate(user._id, { $set: { email_verified: true }, $unset: { email_verification_code: 1 } }, { new: true });
-    const payload = {
-      id: user._id,
-      iss: 'http://192.168.0.57:8000',
-      name: user.name,
-      email: user.email,
-      email_verified: true,
-      roles: user.roles,
-      gender: user.gender,
-    };
-    // Sign Token
-    let secret_key = await getSetting('auth', 'token', 'secret_key');
-    let token_expire_time = await getSetting('auth', 'token', 'expiry_time');
-    token_expire_time = Number.parseInt(token_expire_time);
-    jwt.sign(payload, secret_key, { expiresIn: token_expire_time }, (err, token) => {
-      const msg = config.emailVerify;
-      token = `${token}`;
-
-      res.cookie('token', token); // add cookie here
-      res.cookie('email', user.email); // add cookie here
-      return res.redirect(302, 'http://localhost:8000?verify=true');
-    });
   } catch (err) {
     next(err);
   }
@@ -766,59 +654,6 @@ userController.changePassword = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-};
-
-userController.loginGOath = async (req, res, next) => {
-  let profile = req.user;
-  profile.email = profile.email.toLowerCase();
-  const currentDate = new Date();
-  let user = await userSch.findOne({ email: profile.email });
-  const random_password = await otherHelper.generateRandomHexString(10);
-  if (user) {
-    if (!user.email_verified) {
-      const salt = await bcrypt.genSalt(10);
-      const hash = await bcrypt.hash(random_password, salt);
-      user = await userSch.findByIdAndUpdate(user._id, { $set: { password: hash, email_verified: true, last_password_change_date: currentDate, register_method: profile.provider } });
-      user.email_verified = true;
-    } else {
-      const { token, payload } = await userController.validLoginResponse(req, user, next);
-      return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, 'Login Successfully', token);
-    }
-  } else {
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(random_password, salt);
-    const public_register_role = await getSetting('auth', 'roles', 'public_register_role');
-    const newUser = new userSch({
-      name: profile.name,
-      email: profile.email,
-      password: hash,
-      email_verified: true,
-      last_password_change_date: currentDate,
-      register_method: profile.provider,
-      roles: public_register_role,
-    });
-    user = await newUser.save();
-  }
-
-  const public_register_auth_template = await getSetting('template', 'email', 'public_register_auth_template');
-
-  const renderedMail = await renderMail.renderTemplate(
-    public_register_auth_template,
-    {
-      name: profile.name,
-      email: profile.email,
-      password: random_password,
-      account: profile.provider,
-    },
-    profile.email,
-  );
-  if (renderMail.error) {
-    console.log('render mail error: ', renderMail.error);
-  } else {
-    emailHelper.send(renderedMail, next);
-  }
-  const { token, payload } = await userController.validLoginResponse(req, user, next);
-  return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, 'Register Successfully', token);
 };
 
 userController.selectMultipleData = async (req, res, next) => {

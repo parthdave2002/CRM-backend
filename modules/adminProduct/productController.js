@@ -7,6 +7,12 @@ const productController = {};
 productController.getAllProductList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+
+    if (req.query.search) {
+      const searchRegex = { $regex: req.query.search, $options: 'i' };
+      searchQuery = { $or: [{ name: searchRegex }] };
+    }
+    selectQuery = 'product_pic name price  description category avl_qty is_active createdAt';
     const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Product Data get successfully", page, size, pulledData.totalData);
   } catch (err) {
