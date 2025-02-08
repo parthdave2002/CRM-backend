@@ -10,11 +10,11 @@ const { authorization, authentication } = require('../../middleware/auth.middlew
 // router.post('/role',  sanitize, validate, dModule.AddRoles);
 
 // Role Apis
-router.get('/role', authentication, authorization, dModule.GetRoles);
+router.get('/get-role', dModule.GetRoles);
 router.get('/roleview', authentication,authorization, dModule.GetRoleDetail);
-router.post('/role', validations.sanitizeRole, validations.validateRole, dModule.AddRoles);
-router.get('/delrole', authentication,authorization, dModule.DeleteRole);
-router.get('/role-search', authentication, dModule.GetRoleSearch);
+router.post('/add-role',  dModule.AddRoles);
+router.delete('/remove-role', dModule.DeleteRole);
+router.get('/role-search', authentication,authorization,  dModule.GetRoleSearch);
 
 // Module Apis
 router.get('/module', authentication, authorization, dModule.GetModule);

@@ -16,38 +16,19 @@ const { getAccessData } = require('../../helper/Access.helper');
 const userConfig = require('./userConfig');
 const userController = {};
 
-// User List Api Code Start
-
 userController.GetAllUser = async (req, res, next) => {
   try {
-    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10, false);
-    if (req.query.find_name) {
-      searchQuery = { name: { $regex: req.query.find_name, $options: 'i' }, ...searchQuery };
-      console.log('searchQuery find Name', searchQuery);
+    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    if (req.query.search) {
+      const searchRegex = { $regex: req.query.search, $options: 'i' };
+      searchQuery = { $or: [{ name: searchRegex }, { email: searchRegex }] };
     }
-    if (req.query.find_email) {
-      searchQuery = { email: { $regex: req.query.find_email, $options: 'i' }, ...searchQuery };
-    }
-    const roles = ['5bf7af0a736db01f8fa21a25', '5bf7ae3694db051f5486f845', '5def4c1cb3f6c12264bcf622'];
-    if (req.query.find_is_active == 'true' || req.query.find_is_active == 'false') {
-      searchQuery = { is_active: req.query.find_is_active, ...searchQuery };
-    }
-    if (req.query.find_roles) {
-      searchQuery = { roles: { $in: [req.query.find_roles] }, ...searchQuery };
-    }
-    if (req.query.filter_author) {
-      searchQuery = { roles: { $in: roles }, ...searchQuery };
-    }
-    selectQuery = 'name email password bio email_verified roles user_id is_active';
+    selectQuery = 'name email password gender mobile_no date_of_joining  role user_id is_active';
     populate = [{ path: 'roles', select: 'role_title' }];
-
-
-
-    // let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10, false);
 
     const pulledData = await otherHelper.getQuerySendResponse(userSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     let AccessData = await getAccessData(req);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, { pulledData: pulledData.data, Agentdata: Agentdata, AccessData: AccessData }, config.gets, page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, { pulledData: pulledData.data, AccessData: AccessData }, config.gets, page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
@@ -96,15 +77,39 @@ userController.GetUserDetail = async (req, res, next) => {
 
 userController.PostUser = async (req, res, next) => {
   try {
-    let user = req.body;
+    const user = req.body;
     if (user && user.id) {
       const update = await userSch.findByIdAndUpdate({ _id: user.id }, { $set: user }, { $inc: { user_id: 1 } });
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null, 'user update success!', null);
     } else {
-      user.email = user.email.toLowerCase();
-      const newUser = new userSch(user);
-      const userSave = await newUser.save();
-      return otherHelper.sendResponse(res, httpStatus.OK, true, newUser, null, 'user add success!', null);
+
+      let profilePic = null;
+      if (req?.file) {
+          profilePic = req.file.filename; 
+      }
+
+      const existingUser = await userSch.findOne({email : user.email})
+      if(existingUser){
+        return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user email already exist!', null);
+      }
+
+      const existingMobile = await userSch.findOne({mobile_no : user.mobile_no})
+      if(existingMobile){
+        return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user mobile  already exist!', null);
+      }
+
+      let salt = await bcrypt.genSalt(10);
+      let hashPwd = await bcrypt.hash(req.body.password, salt);
+
+      const data = await userSch.create({
+        ...req.body,
+        password: hashPwd, 
+        user_pic: profilePic, 
+    });
+
+      // const newUser = new userSch(user);
+      // await newUser.save();
+      return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, 'user add success!', null);
     }
   } catch (err) {
     next(err);
