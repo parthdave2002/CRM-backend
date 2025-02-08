@@ -7,6 +7,10 @@ const taglogController = {};
 taglogController.getAllTaglogList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    if (req.query.search) {
+      const searchRegex = { $regex: req.query.search, $options: 'i' };
+      searchQuery = { $or: [{ taglog_name: searchRegex }] };
+    }
     const pulledData = await otherHelper.getQuerySendResponse(taglogSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Taglog Data get successfully", page, size, pulledData.totalData);
   } catch (err) {
