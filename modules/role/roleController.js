@@ -49,28 +49,18 @@ roleController.GetRoleDetail = async (req, res, next) => {
 };
 
 roleController.AddRoles = async (req, res, next) => {
-  console.log("Controller calllll");
-  
+
   try {
     const role = req.body;
     if (role.id) {
       const update = await roleSch.findByIdAndUpdate(role.id, { $set: role }, { new: true });
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null, roleConfig.roleSave, null);
     } else {
-      role.added_by = req.user.id;
+      // role.added_by = req.user.id;
       const newRole = new roleSch(role);
       await newRole.save();
       //create new access with every module
-      const all_modules = await moduleSchema.find().select('_id').lean();
-      let save = [];
-      for (let i = 0; i < all_modules.length; i++) {
-        let new_access = {};
-        new_access.role_id = newRole._id;
-        new_access.module_id = all_modules[i]._id;
-        new_access.access_type = [];
-        save = [...save, new_access];
-      }
-      await accessSchema.insertMany(save);
+      // const all_modules = await moduleSchema.find().select('_id').lean();
       return otherHelper.sendResponse(res, httpStatus.OK, true, newRole, null, roleConfig.roleSave, null);
     }
   } catch (err) {

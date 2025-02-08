@@ -149,7 +149,6 @@ otherHelper.getQuerySendResponse = async (model, page, size, sortQuery, searchQu
       .skip((page - 1) * size)
       .limit(size * 1)
       .populate(populate);
-      console.log("checkkkkk searchquery  ",searchQuery)
     pulledData.totalData = await model.countDocuments(searchQuery);
     return pulledData;
   } catch (err) {
