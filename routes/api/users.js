@@ -55,9 +55,8 @@ router.post('/verifymail/resend', userModule.ResendVerificationCode);
  * @description Login user / Returning JWT Token
  * @access Public
  */
-router.post('/login', validateRegisterInput.sanitizeLogin, validateRegisterInput.validateLoginInput, getClientInfo, userModule.Login);
+router.post('/login', userModule.Login);
 
-router.post('/login/mfa', getClientInfo, userModule.LoginAfterMultiFa);
 // router.post('/login/2fa', getClientInfo, userModule.LoginAfterTwoFa);
 // router.post('/login/2faga', getClientInfo, userModule.LoginAfterTwoFaGa);
 /**

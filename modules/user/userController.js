@@ -212,13 +212,9 @@ userController.validLoginResponse = async (req, user, next) => {
       id: user._id,
       name: user.name,
       email: user.email,
-      email_verified: user.email_verified,
       roles: user.roles,
       gender: user.gender,
-      is_two_fa: user.is_two_fa,
       image: user.image,
-      Menu: "Default",
-      isLoggedIn: "false"
     };
     // Sign Token
     let token = await jwt.sign(payload, secretOrKey, {
@@ -441,58 +437,25 @@ userController.ResetPassword = async (req, res, next) => {
 
 userController.Login = async (req, res, next) => {
   try {
-    console.log("/user/login calllll");
     let errors = {};
     const password = req.body.password;
-    let email = req.body.email.toLowerCase();
-    const user = await userSch.findOne({ email }).populate([{ path: 'roles', select: 'role_title' }]);
-
+    let username = req.body.username.trim();
+    const user = await userSch.findOne({ name : username })
     if (!user) {
-      errors.email = 'User not found';
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, errors, errors.email, null);
+      errors.username = 'User not found';
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, errors, errors.username, null);
     } else {
       if (!user.is_active) {
         errors.inactive = 'Please Contact Admin to reactivate your account';
         return otherHelper.sendResponse(res, httpStatus.NOT_ACCEPTABLE, false, null, errors, errors.inactive, null);
       }
-      const force_allow_email_verify = await getSetting('user', 'email', 'force_allow_email_verify');
-      if (force_allow_email_verify && !user.email_verified) {
-        return otherHelper.sendResponse(res, httpStatus.NOT_ACCEPTABLE, false, { email: email, email_verified: false }, null, 'Please Verify your Email', null);
-      }
+ 
       // Check Password
       const isMatch = await bcrypt.compare(password, user.password);
       if (isMatch) {
         let success = true;
         let responseData = { multi_fa: { google_authenticate: { is_authenticate: false }, email: { is_authenticate: false } } };
-        if (user.multi_fa.google_authenticate.is_authenticate) {
-          success = false;
-          responseData.multi_fa.google_authenticate.is_authenticate = true;
-          // return otherHelper.sendResponse(res, httpStatus.OK, true, { email: email, _id: user._id, is_two_fa_ga: true }, null, 'Enter Code Sent to Email', null);
-        }
-        if (user.multi_fa.email.is_authenticate) {
-          success = false;
-          responseData.multi_fa.email.is_authenticate = true;
-          const two_fa_code = otherHelper.generateRandomHexString(6);
-          const two_fa_time = new Date();
-          const d = await userSch.findByIdAndUpdate(user._id, { $set: { 'multi_fa.email.code': two_fa_code, 'multi_fa.email.time': two_fa_time } });
-          const two_fa_email_template = await getSetting('template', 'email', 'two_fa_email_template');
-          const renderedMail = await renderMail.renderTemplate(
-            two_fa_email_template,
-            {
-              name: user.name,
-              email: user.email,
-              code: two_fa_code,
-            },
-            user.email,
-          );
-          if (renderMail.error) {
-            console.log('render mail error: ', renderMail.error);
-          } else {
-            const da = await emailHelper.send(renderedMail, next);
-          }
-          if (!success) {
-          }
-        }
+
         if (success) {
           const { token, payload } = await userController.validLoginResponse(req, user, next);
           return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, null, token);
@@ -511,52 +474,7 @@ userController.Login = async (req, res, next) => {
   }
 };
 
-userController.LoginAfterMultiFa = async (req, res, next) => {
-  try {
-    const data = req.body;
-    const user = await userSch.findOne({ email: data.email.toLowerCase() });
-    if (user) {
-      let err = { multi_fa: {} };
-      let success = true;
-      if (user.multi_fa && user.multi_fa.google_authenticate && user.multi_fa.google_authenticate.is_authenticate) {
-        if (data.multi_fa && data.multi_fa.google_authenticate && data.multi_fa.google_authenticate.code) {
-          const otp = await twoFaHelper.verifyMultiFactorAuthCode(data.multi_fa.google_authenticate.code, user.multi_fa.google_authenticate.auth_secret);
-          if (otp) {
-          } else {
-            success = false;
-            err.multi_fa.google_authenticate = { code: 'Invalid Code' };
-          }
-        } else {
-          err.multi_fa.google_authenticate = { code: 'Enter Code from Authenticator App' };
-          success = false;
-        }
-      }
-      if (user.multi_fa && user.multi_fa.email && user.multi_fa.email.is_authenticate) {
-        if (data.multi_fa && data.multi_fa.email && data.multi_fa.email.code) {
-          if (data.multi_fa.email.code == user.multi_fa.email.code) {
-          } else {
-            success = false;
-            err.multi_fa.email = { code: 'Enter Valid Code Sent To Email' };
-          }
-        } else {
-          success = false;
-          err.multi_fa.email = { code: 'Enter Code Sent To Email' };
-        }
-      }
-      if (success) {
-        const { token, payload } = await userController.validLoginResponse(req, user, next);
-        const d = await userSch.findByIdAndUpdate(user._id, { $unset: { 'multi_fa.email.code': 1, 'multi_fa.email.time': 1 } });
-        return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, null, token);
-      } else {
-        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, err, 'Enter Valid Codes', null);
-      }
-    } else {
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, { email: 'Email Not found' }, 'Email Not found', null);
-    }
-  } catch (err) {
-    next(err);
-  }
-};
+
 
 userController.LoginAfterTwoFa = async (req, res, next) => {
   try {
