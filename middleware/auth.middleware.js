@@ -57,8 +57,9 @@ authMiddleware.retrieveClientInfo = async (req, res, next) => {
 };
 authMiddleware.authentication = async (req, res, next) => {
   try {
-    const expiresIn = '2d';
-    const secretOrKey = await getSetting('auth', 'token', 'secret_key', { expiresIn });
+    const expiresIn = '5d';
+    const secretOrKey = process.env.JWTSecret;
+    // const secretOrKey = await getSetting('auth', 'token', 'secret_key', { expiresIn });
     let token = req.body.token || req.query.token || req.headers['x-access-token'] || req.headers.authorization || req.headers.token;
     if (token && token.length) {
       token = token.replace('Bearer ', '');

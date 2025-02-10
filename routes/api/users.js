@@ -10,11 +10,11 @@ const { authentication, authenticationForLogout, authorization, getClientInfo, i
 
 
 // /USERlIST API CODE START
-router.get('/get-user', userModule.GetAllUser);
+router.get('/get-user', authentication,userModule.GetAllUser);
 router.get('/user-search', authentication, userModule.GetUserSearch);
 router.get('/deluser', authentication, authorization, userModule.DeleteUser);
 router.get('/detailview', authentication,  userModule.GetUserDetail);
-router.post('/add-user',uploadHelper.uploadFiles('public/user', 'single', 'user_pic'), userModule.PostUser);
+router.post('/add-user', authentication, uploadHelper.uploadFiles('public/user', 'single', 'user_pic'), userModule.PostUser);
 // /USERlIST API CODE END
 
 
