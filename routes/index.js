@@ -33,6 +33,9 @@ router.use('/packing', adminpacking);
 const productdata = require('./api/product');
 router.use('/product', productdata);
 
+const orderdata = require('./api/order');
+router.use('/order', orderdata);
+
 const bannerdata = require('./api/banner');
 router.use('/banner', bannerdata);
 

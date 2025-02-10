@@ -94,6 +94,12 @@ userController.PostUser = async (req, res, next) => {
         return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user email already exist!', null);
       }
 
+      let username = req.body.username && req.body.username.toLowerCase();
+      const existingUsername = await userSch.findOne({username : username})
+      if(existingUsername){
+        return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'username already exist!', null);
+      }
+
       const existingMobile = await userSch.findOne({mobile_no : user.mobile_no})
       if(existingMobile){
         return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user mobile  already exist!', null);
@@ -203,7 +209,10 @@ userController.validLoginResponse = async (req, user, next) => {
         }
       }
     }
-    const secretOrKey = await getSetting('auth', 'token', 'secret_key');
+    
+    // const secretOrKey = await getSetting('auth', 'token', 'secret_key');
+    const secretOrKey = process.env.JWTSecret;
+    
     var tokenExpireTime = await getSetting('auth', 'token', 'expiry_time');
     tokenExpireTime = Number.parseInt(tokenExpireTime);
     // Create JWT payload
@@ -213,12 +222,10 @@ userController.validLoginResponse = async (req, user, next) => {
       name: user.name,
       email: user.email,
       roles: user.roles,
-      gender: user.gender,
-      image: user.image,
     };
     // Sign Token
     let token = await jwt.sign(payload, secretOrKey, {
-      expiresIn: tokenExpireTime,
+      expiresIn: "5d",
     });
     loginLogs.addloginlog(req, token, next);
     token = `Bearer ${token}`;
@@ -455,7 +462,7 @@ userController.Login = async (req, res, next) => {
       if (isMatch) {
         let success = true;
         let responseData = { multi_fa: { google_authenticate: { is_authenticate: false }, email: { is_authenticate: false } } };
-
+        
         if (success) {
           const { token, payload } = await userController.validLoginResponse(req, user, next);
           return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, null, token);
