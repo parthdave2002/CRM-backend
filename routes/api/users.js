@@ -10,6 +10,8 @@ const { authentication, authenticationForLogout, authorization, getClientInfo, i
 
 
 // /USERlIST API CODE START
+router.get('/check-user', userModule.GetCheckUser);
+
 router.get('/get-user', authentication,userModule.GetAllUser);
 router.get('/user-search', authentication, userModule.GetUserSearch);
 router.get('/deluser', authentication, authorization, userModule.DeleteUser);
