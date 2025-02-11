@@ -16,6 +16,22 @@ const { getAccessData } = require('../../helper/Access.helper');
 const userConfig = require('./userConfig');
 const userController = {};
 
+userController.GetCheckUser = async (req, res, next) => {
+  try {
+      const username = req.params.username
+
+      const existingUser = await userSch.findOne({name : username})
+      if(existingUser){
+        return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'user exist!', null);
+      }
+      else{
+        return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user not exist!', null );
+      }
+  } catch (err) {
+    next(err);
+  }
+};
+
 userController.GetAllUser = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
@@ -95,7 +111,7 @@ userController.PostUser = async (req, res, next) => {
       }
 
       let username = req.body.username && req.body.username.toLowerCase();
-      const existingUsername = await userSch.findOne({username : username})
+      const existingUsername = await userSch.findOne({name : username})
       if(existingUsername){
         return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'username already exist!', null);
       }
