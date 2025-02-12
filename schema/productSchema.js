@@ -4,7 +4,6 @@ const schema = mongoose.Schema;
 const productSchema = new schema({
   name: { type: String, required: true,unique: true  },
   tech_name: { type: String, required: true,unique: true  },
-  company_name: { type: String  },
   packaging :{ type: schema.Types.ObjectId, required: true, ref: 'packing-type'},
   price: { type: Number, required: true, default: 0},
   discount: { type: Number, required: true, default: 0},

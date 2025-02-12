@@ -60,12 +60,7 @@ userController.GetUserSearch = async (req, res, next) => {
 userController.DeleteUser = async (req, res, next) => {
   try {
     const id = req.query.id;
-    const user = await userSch.findByIdAndUpdate(id, {
-      $set: {
-        is_deleted: true,
-        deleted_at: new Date(),
-      },
-    });
+    const user = await userSch.findByIdAndDelete(id);
     return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'User delete Succeessfully', null);
   } catch (err) {
     next(err);
