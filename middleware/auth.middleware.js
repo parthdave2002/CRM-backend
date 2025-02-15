@@ -5,8 +5,8 @@ const useragent = require('useragent');
 const requestIp = require('request-ip');
 const loginLogSch = require('../modules/user/loginlogs/loginlogSchema');
 const otherHelper = require('../helper/others.helper');
-const accessSch = require('../schema/module_user_accessschema');
-const modulesSch = require('../schema/module_accessschema');
+// const accessSch = require('../schema/role_accessschema');
+// const modulesSch = require('../schema/module_accessschema');
 
 const rolesSch = require('../schema/roleSchema');
 const userSch = require('../schema/userSchema');
@@ -168,35 +168,35 @@ authMiddleware.authorization = async (req, res, next) => {
 
     const modules_array = [];
 
-    if (req.body.type) {
-      const method = req.body.type;
-      const modules = await modulesSch.findOne({ is_active: true, access_name: { $in: method } });
-      modules_array.splice(modules);
-      modules_array.push(modules);
-    } else {
-      const access = req.query.type;
-      const modules = await modulesSch.findOne({ is_active: true, access_name: { $in: access } });
-      modules_array.splice(modules);
-      modules_array.push(modules);
-    }
+    // if (req.body.type) {
+    //   const method = req.body.type;
+    //   const modules = await modulesSch.findOne({ is_active: true, access_name: { $in: method } });
+    //   modules_array.splice(modules);
+    //   modules_array.push(modules);
+    // } else {
+    //   const access = req.query.type;
+    //   const modules = await modulesSch.findOne({ is_active: true, access_name: { $in: access } });
+    //   modules_array.splice(modules);
+    //   modules_array.push(modules);
+    // }
 
     let moduleId = [];
-    if (!isEmpty(modules_array[0])) {
-      for (let k = 0; k < modules_array.length; k++) {
-        moduleId.push(modules_array[0]._id);
-      }
-    } else {
-      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Module Access Restricted', null);
-    }
+    // if (!isEmpty(modules_array[0])) {
+    //   for (let k = 0; k < modules_array.length; k++) {
+    //     moduleId.push(modules_array[0]._id);
+    //   }
+    // } else {
+    //   return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Module Access Restricted', null);
+    // }
     const roleData = role[0]._id;
     const AccessData = modules_array[0].access_name;
 
     if (role && role.length && moduleId) {
-      const access = await accessSch.find({ is_active: true, role_id: { $in: roleData }, access_name: { $in: AccessData } });
+      // const access = await accessSch.find({ is_active: true, role_id: { $in: roleData }, access_name: { $in: AccessData } });
 
-      if (access[0] && access[0].access_name) {
-        return next();
-      }
+      // if (access[0] && access[0].access_name) {
+      //   return next();
+      // }
       return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Action not allowed for you', null);
     } else {
       return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Access Denied', null);

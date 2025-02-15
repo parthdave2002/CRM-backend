@@ -8,8 +8,6 @@ const emailHelper = require('./../../helper/email.helper');
 const twoFaHelper = require('./../../helper/2fa.helper');
 const renderMail = require('./../template/templateController').internal;
 const otherHelper = require('../../helper/others.helper');
-const accessSch = require('../../schema/accessSchema');
-const moduleSch = require('../../schema/moduleSchema');
 const loginLogs = require('./loginlogs/loginlogController').internal;
 const { getSetting } = require('../../helper/settings.helper');
 const { getAccessData } = require('../../helper/Access.helper');
@@ -18,9 +16,8 @@ const userController = {};
 
 userController.GetCheckUser = async (req, res, next) => {
   try {
-      const username = req.params.username
-
-      const existingUser = await userSch.findOne({name : username})
+      const username = req.query.search;
+      const existingUser = await userSch.findOne({name : username});
       if(existingUser){
         return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'user exist!', null);
       }
@@ -209,17 +206,17 @@ userController.Register = async (req, res, next) => {
 
 userController.validLoginResponse = async (req, user, next) => {
   try {
-    let accesses = await accessSch.find({ role_id: user.roles, is_active: true }, { access_type: 1, _id: 0 });
+    // let accesses = await accessSch.find({ role_id: user.roles, is_active: true }, { access_type: 1, _id: 0 });
     let routes = [];
-    if (accesses && accesses.length) {
-      const access = accesses.map((a) => a.access_type).reduce((acc, curr) => [...curr, ...acc]);
-      const routers = await moduleSch.find({ 'path._id': access }, { 'path.admin_routes': 1, 'path.access_type': 1 });
-      for (let i = 0; i < routers.length; i++) {
-        for (let j = 0; j < routers[i].path.length; j++) {
-          routes.push(routers[i].path[j]);
-        }
-      }
-    }
+    // if (accesses && accesses.length) {
+    //   const access = accesses.map((a) => a.access_type).reduce((acc, curr) => [...curr, ...acc]);
+    //   const routers = await moduleSch.find({ 'path._id': access }, { 'path.admin_routes': 1, 'path.access_type': 1 });
+    //   for (let i = 0; i < routers.length; i++) {
+    //     for (let j = 0; j < routers[i].path.length; j++) {
+    //       routes.push(routers[i].path[j]);
+    //     }
+    //   }
+    // }
     
     // const secretOrKey = await getSetting('auth', 'token', 'secret_key');
     const secretOrKey = process.env.JWTSecret;
