@@ -4,9 +4,77 @@ const apiCallHelper = require('../../helper/apicall.helper');
 const userSch = require('../../schema/userSchema');
 const bugSch = require('../../schema/bugSchema');
 const roleSch = require('../../schema/roleSchema');
-
+const productSch = require("../../schema/productSchema");
+const customerSch  =require("../../schema/customerSchema");
 
 const adminDashboardController = {};
+
+const getPeriodDates = (period) => {
+  const today = new Date();
+  let startDate = new Date(today);
+  let endDate = new Date(today);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+  switch (period.toString()) {
+    case 'daily':
+      startDate.setDate(today.getDate());
+      break;
+    case 'weekly':
+      startDate.setDate(today.getDate() - 7);
+      break;
+    case 'monthly':
+      startDate.setMonth(today.getMonth() - 1);
+      break;
+    default:
+  }
+  return { startDate: startDate, endDate: endDate };
+};
+
+adminDashboardController.getDashboardData = async (req, res, next) => {
+  try {
+    const periods = ['daily', 'weekly', 'monthly'];
+    const products = await productSch.find({}).sort({ createdAt: -1 }).limit(5);
+    const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5);
+    const customers = await customerSch.find({ is_deleted: false }).sort({ created_at: -1 }).limit(5);
+
+    const getTotalForPeriod = async (model, dateField, periods) => {
+      const totals = {};
+      for (const period of periods) {
+        const dateRange = getPeriodDates(period);
+        const total = await model.find({
+          [dateField]: { $gte: dateRange.startDate },
+        });
+        totals[period] = total.length;
+      }
+      return totals;
+    };
+
+    const totalProducts = await getTotalForPeriod(productSch, 'createdAt', periods);
+    const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
+    // const totalOrders = await getTotalForPeriod(orderSch, 'created_at', periods);
+    const totalCustomers = await getTotalForPeriod(customerSch, 'created_at', periods);
+
+    return otherHelper.sendResponse(
+      res,
+      httpStatus.OK,
+      true,
+      {
+        products,
+        users,
+        customers,
+        totalProducts,
+        // totalOrders,
+        totalUsers,
+        totalCustomers,
+      },
+      null,
+      'Dashboard data fetched successfully',
+      null,
+    );
+  } catch (err) {
+    next(err);
+  }
+};
 
 adminDashboardController.getNoOfCustomerByRegistration = async (req, res, next) => {
   try {

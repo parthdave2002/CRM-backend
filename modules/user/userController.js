@@ -1,5 +1,6 @@
 const userSch = require('../../schema/userSchema');
 const roleSch = require('../../schema/roleSchema');
+const roleAccessModel = require("../../schema/role_accessschema")
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('./userConfig');
@@ -455,41 +456,35 @@ userController.Login = async (req, res, next) => {
     let errors = {};
     const password = req.body.password;
     let username = req.body.username.trim();
-    const user = await userSch.findOne({ name : username })
+    const user = await userSch.findOne({ name: username });
     if (!user) {
-      errors.username = 'User not found';
+      errors.username = "User not found";
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, errors, errors.username, null);
-    } else {
-      if (!user.is_active) {
-        errors.inactive = 'Please Contact Admin to reactivate your account';
-        return otherHelper.sendResponse(res, httpStatus.NOT_ACCEPTABLE, false, null, errors, errors.inactive, null);
-      }
- 
-      // Check Password
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (isMatch) {
-        let success = true;
-        let responseData = { multi_fa: { google_authenticate: { is_authenticate: false }, email: { is_authenticate: false } } };
-        
-        if (success) {
-          const { token, payload } = await userController.validLoginResponse(req, user, next);
-          return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, null, token);
-        } else {
-          return otherHelper.sendResponse(res, httpStatus.OK, true, { email: user.email, ...responseData }, null, 'Enter Code', null);
-          // const { token, payload } = await userController.validLoginResponse(req, user, next);
-          // return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, null, token);
-        }
-      } else {
-        errors.password = 'Password incorrect';
-        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, errors, errors.password, null);
-      }
     }
+
+    if (!user.is_active) {
+      errors.inactive = "Please Contact Admin to reactivate your account";
+      return otherHelper.sendResponse(res, httpStatus.NOT_ACCEPTABLE, false, null, errors, errors.inactive, null);
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      errors.password = "Password incorrect";
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, errors, errors.password, null);
+    }
+    let rolePermissions = [];
+
+    if (user.role) {
+      rolePermissions = await roleAccessModel.find({ role_id: user.role }).select("permissions module_name");
+    }
+    const { token, payload } = await userController.validLoginResponse(req, user, next);
+    payload.rolePermissions = rolePermissions;
+    return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, "Login Successful", token);
   } catch (err) {
-    next(err);
+    console.error("Error in Login API:", err);
+    return next(err);
   }
 };
-
-
 
 userController.LoginAfterTwoFa = async (req, res, next) => {
   try {
