@@ -11,4 +11,6 @@ router.get('/user/recent', authentication, authorization, adminDashboardControll
 router.get('/user/roles', authentication, authorization, adminDashboardController.GetAllUserGroupBy);
 router.get('/user/blogs', authentication, authorization, adminDashboardController.getNoOfBlogByBlogWriter);
 
+router.get('/details', adminDashboardController.getDashboardData);
+
 module.exports = router;
