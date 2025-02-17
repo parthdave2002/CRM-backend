@@ -1,8 +1,7 @@
 'use strict';
 const httpStatus = require('http-status');
 const otherHelper = require('./others.helper');
-const module_user_accessSchema = require('../schema/module_user_accessschema');
-const module_access = require('../schema/module_accessschema');
+const  role_accessSchema = require('../schema/role_accessschema');
 
 const AccessHelper = {};
 
@@ -10,7 +9,7 @@ AccessHelper.getAccessData = async (req, res, next) => {
   try {
     const submodule = req.query.sub_module_id;
     const id = req.user.roles[0]._id;
-    const AccessData = await module_user_accessSchema.find({ role_id: id, sub_module_id: { $in: submodule } }).select('access_name  sub_module_id');
+    const AccessData = await  role_accessSchema.find({ role_id: id, sub_module_id: { $in: submodule } }).select('access_name  sub_module_id');
     if (AccessData.length <= 0) {
       return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'Permission Denied', null);
     }
@@ -25,10 +24,11 @@ AccessHelper.getLayoutData = async (req, res, next) => {
   try {
     const submodule = req.query.sub_module_id;
     const id = req.user.roles[0]._id;
-    const LayoutData = await module_access.find({ sub_module_id: { $in: submodule } }).select('restricted_menu');
-    if (LayoutData.length <= 0) {
-      return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'LayoutData is Not Defined', null);
-    }
+    const LayoutData = [];
+    // const LayoutData = await module_access.find({ sub_module_id: { $in: submodule } }).select('restricted_menu');
+    // if (LayoutData.length <= 0) {
+    //   return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'LayoutData is Not Defined', null);
+    // }
 
     return LayoutData;
   } catch (err) {
