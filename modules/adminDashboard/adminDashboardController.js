@@ -186,4 +186,73 @@ adminDashboardController.GetAllUserGroupBy = async (req, res, next) => {
   }
 };
 
+const getDataByType = async (startDate, endDate, type) => {
+  try {
+    let data = [];
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    start.setUTCHours(0, 0, 0, 0);
+    end.setUTCHours(23, 59, 59, 999);
+
+    switch (type.toLowerCase()) {
+      case 'product':
+        data = await productSch
+          .find({
+            createdAt: { $gte: start, $lte: end },
+          })
+          .sort({ createdAt: -1 });
+        break;
+
+      case 'user':
+        data = await userSch
+          .find({
+            added_at: { $gte: start, $lte: end },
+            is_deleted: false,
+          })
+          .sort({ added_at: -1 });
+        break;
+
+      case 'order':
+        data = await orderSch
+          .find({
+            createdAt: { $gte: start, $lte: end },
+          })
+          .sort({ createdAt: -1 });
+        break;
+
+      case 'customer':
+        data = await customerSch
+          .find({
+            created_at: { $gte: start, $lte: end },
+          })
+          .sort({ created_at: -1 });
+        break;
+
+      default:
+        throw new Error('Invalid type specified');
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error fetching data:', err);
+    throw new Error('An error occurred while fetching data');
+  }
+};
+
+adminDashboardController.getReportData = async (req, res, next) => {
+  try {
+    const { startDate, endDate, type } = req.query;
+
+    if (!startDate || !endDate || !type) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Missing parameters', null);
+    }
+    const data = await getDataByType(startDate, endDate, type);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, "data ,fetched successfully", null);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = adminDashboardController;

@@ -5,7 +5,7 @@ const useragent = require('useragent');
 const requestIp = require('request-ip');
 const loginLogSch = require('../modules/user/loginlogs/loginlogSchema');
 const otherHelper = require('../helper/others.helper');
-// const accessSch = require('../schema/role_accessschema');
+const roleAccessModel = require('../schema/role_accessschema');
 // const modulesSch = require('../schema/module_accessschema');
 
 const rolesSch = require('../schema/roleSchema');
@@ -78,33 +78,6 @@ authMiddleware.authentication = async (req, res, next) => {
   }
 };
 
-// authMiddleware.socketauth = async (req, res, next) => {
-//   try {
-//     const expiresIn = '2d';
-//     const secretOrKey = await getSetting('auth', 'token', 'secret_key', { expiresIn });
-//     // console.log("req.headers.authorization",req.headers.authorization)
-//     // console.log("req.headers.token",req.headers.token)
-//     // const token = req.headers.authorization || req.headers.token;
-//     const token =  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY0YWQyN2QwNjgzZjcxMmMzODMwMGI1OSIsIm5hbWUiOiJSdXBhIHNodWtsYSIsImVtYWlsIjoicnVwYUBhZ3JvdmlrYXMuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJyb2xlcyI6W3siX2lkIjoiNjQ5ZTU2NGVmYWJlMWI0YjdjMzYxOWY4Iiwicm9sZV90aXRsZSI6IkRldmVsb3BlciJ9XSwiaWF0IjoxNjk2MzM3NjMzLCJleHAiOjE3MzIzMzc2MzN9.-xVmxVEWPIDo_dBNkAdujx6iKXYc0sLeTqHvx41z_qs';
-//     // console.log("token>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",token.length);
-
-//     if (token && token.length) {
-//       const passed = await loginLogSch.findOne({ token: token, is_active: true });
-//       if (passed) {
-//         req.websocket.send('[Server] Authentication successful. You are now connected.');
-//         return next();
-//       } else {
-//         return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Session Expired', null);
-//       }
-//     }
-//     return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, token, 'Token not found', null);
-//   } catch (err) {
-//     return next(err);
-//   }
-// };
-
-
-
 authMiddleware.socketauth = async (req, res, next) => {
   try {
     const expiresIn = '2d';
@@ -155,52 +128,36 @@ authMiddleware.authenticationForLogout = async (req, res, next) => {
 };
 
 authMiddleware.authorization = async (req, res, next) => {
+
+  const methodPermissionMap = {
+    GET: "view",
+    POST: "add",
+    PUT: "edit",
+    DELETE: "delete",
+  };
+
   try {
-    const user = req.user;
-    if (!user) {
-      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'User Information Not found', null);
-    }
-    const role = await rolesSch.find({ _id: { $in: user.roles } }, { _id: 1 });
-    let path = req.baseUrl + req.route.path;
-    if (path.substr(path.length - 1) === '/') {
-      path = path.slice(0, path.length - 1);
+    const role  = req.user.roles;
+    const { method } = req; 
+
+    if (!role || !role.length) {
+      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Role Not Found', null);
     }
 
-    const modules_array = [];
-
-    // if (req.body.type) {
-    //   const method = req.body.type;
-    //   const modules = await modulesSch.findOne({ is_active: true, access_name: { $in: method } });
-    //   modules_array.splice(modules);
-    //   modules_array.push(modules);
-    // } else {
-    //   const access = req.query.type;
-    //   const modules = await modulesSch.findOne({ is_active: true, access_name: { $in: access } });
-    //   modules_array.splice(modules);
-    //   modules_array.push(modules);
-    // }
-
-    let moduleId = [];
-    // if (!isEmpty(modules_array[0])) {
-    //   for (let k = 0; k < modules_array.length; k++) {
-    //     moduleId.push(modules_array[0]._id);
-    //   }
-    // } else {
-    //   return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Module Access Restricted', null);
-    // }
-    const roleData = role[0]._id;
-    const AccessData = modules_array[0].access_name;
-
-    if (role && role.length && moduleId) {
-      // const access = await accessSch.find({ is_active: true, role_id: { $in: roleData }, access_name: { $in: AccessData } });
-
-      // if (access[0] && access[0].access_name) {
-      //   return next();
-      // }
-      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Action not allowed for you', null);
-    } else {
-      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Access Denied', null);
+    const roleAccesses = await roleAccessModel.find({ role_id: role , module_name : "User" });
+    if (!roleAccesses.length) {
+      return otherHelper.sendResponse(res,HttpStatus.UNAUTHORIZED,false,null,null, "Resticted Access Role",null);
     }
+
+    const requiredPermission = methodPermissionMap[method];
+    console.log("requiredPermission", requiredPermission);
+    
+    const permissions = roleAccesses[0]?.permissions;
+    if (!permissions || !permissions[requiredPermission]) {
+      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, "permission denied", null);
+    }
+   
+    next();
   } catch (err) {
     next(err);
   }
