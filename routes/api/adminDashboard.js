@@ -12,5 +12,6 @@ router.get('/user/roles', authentication, authorization, adminDashboardControlle
 router.get('/user/blogs', authentication, authorization, adminDashboardController.getNoOfBlogByBlogWriter);
 
 router.get('/details', adminDashboardController.getDashboardData);
+router.get('/report', adminDashboardController.getReportData);
 
 module.exports = router;

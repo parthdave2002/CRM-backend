@@ -12,6 +12,9 @@ router.use('/role', roleRoutes);
 const adminDashboard = require('./api/adminDashboard');
 router.use('/dashboard', adminDashboard);
 
+const customerRoutes = require('./api/customer');
+router.use('/customer', customerRoutes);
+
 const company = require('./api/company');
 router.use('/company', company);
 

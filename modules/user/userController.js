@@ -230,7 +230,7 @@ userController.validLoginResponse = async (req, user, next) => {
       id: user._id,
       name: user.name,
       email: user.email,
-      roles: user.roles,
+      roles: user.role,
     };
     // Sign Token
     let token = await jwt.sign(payload, secretOrKey, {
