@@ -35,7 +35,7 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
     const periods = ['daily', 'weekly', 'monthly'];
     const products = await productSch.find({}).sort({ createdAt: -1 }).limit(5);
     const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5);
-    const customers = await customerSch.find({ is_deleted: false }).sort({ created_at: -1 }).limit(5);
+    const customers = await customerSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5);
 
     const getTotalForPeriod = async (model, dateField, periods) => {
       const totals = {};
@@ -51,8 +51,8 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
 
     const totalProducts = await getTotalForPeriod(productSch, 'createdAt', periods);
     const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
-    // const totalOrders = await getTotalForPeriod(orderSch, 'created_at', periods);
-    const totalCustomers = await getTotalForPeriod(customerSch, 'created_at', periods);
+    // const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
+    const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
 
     return otherHelper.sendResponse(
       res,
@@ -225,9 +225,9 @@ const getDataByType = async (startDate, endDate, type) => {
       case 'customer':
         data = await customerSch
           .find({
-            created_at: { $gte: start, $lte: end },
+            added_at: { $gte: start, $lte: end },
           })
-          .sort({ created_at: -1 });
+          .sort({ added_at: -1 });
         break;
 
       default:

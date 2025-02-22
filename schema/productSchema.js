@@ -18,7 +18,7 @@ const productSchema = new schema({
   description: { type: String, required: true, },
   is_active: { type: Boolean, required: true, default: false },
   is_deleted: { type: Boolean, default: false },
-  createdAt: { type: Date,  default: Date.now },
+  added_at: { type: Date,  default: Date.now },
   updated_at: { type: Date },
   deleted_by: { type: schema.Types.ObjectId},
   deleted_at: {type: Date},
