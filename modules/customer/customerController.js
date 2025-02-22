@@ -11,7 +11,7 @@ customerController.getAllCustomerList = async (req, res, next) => {
       const searchRegex = { $regex: req.query.search, $options: 'i' };
       searchQuery = { $or: [{ customer_name: searchRegex }, { mobile_number: searchRegex }, { address: searchRegex }] };
     }
-    selectQuery = 'customer_name mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode created_at';
+    selectQuery = 'customer_name mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at';
     const pulledData = await otherHelper.getQuerySendResponse(customerSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Customer Data fetched successfully', page, size, pulledData.totalData);
   } catch (err) {

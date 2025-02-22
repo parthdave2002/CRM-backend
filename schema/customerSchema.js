@@ -17,7 +17,7 @@ const customerSchema = new schema({
   taluka: { type: String},
   village: { type: String},
   pincode: { type: String},
-  created_at: { type: Date },
+  added_at: { type: Date },
   created_by: { type: schema.Types.ObjectId, ref: 'users' },
   updated_at: { type: Date },
   updated_by: { type: schema.Types.ObjectId, ref: 'users' },
