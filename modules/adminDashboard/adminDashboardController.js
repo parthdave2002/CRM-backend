@@ -33,7 +33,7 @@ const getPeriodDates = (period) => {
 adminDashboardController.getDashboardData = async (req, res, next) => {
   try {
     const periods = ['daily', 'weekly', 'monthly'];
-    const products = await productSch.find({}).sort({ createdAt: -1 }).limit(5);
+    const products = await productSch.find({}).sort({ added_at: -1 }).limit(5);
     const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5);
     const customers = await customerSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5);
 
@@ -49,7 +49,7 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
       return totals;
     };
 
-    const totalProducts = await getTotalForPeriod(productSch, 'createdAt', periods);
+    const totalProducts = await getTotalForPeriod(productSch, 'added_at', periods);
     const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
     // const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
     const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
@@ -200,9 +200,9 @@ const getDataByType = async (startDate, endDate, type) => {
       case 'product':
         data = await productSch
           .find({
-            createdAt: { $gte: start, $lte: end },
+            added_at: { $gte: start, $lte: end },
           })
-          .sort({ createdAt: -1 });
+          .sort({ added_at: -1 });
         break;
 
       case 'user':
@@ -217,9 +217,9 @@ const getDataByType = async (startDate, endDate, type) => {
       case 'order':
         data = await orderSch
           .find({
-            createdAt: { $gte: start, $lte: end },
+            added_at: { $gte: start, $lte: end },
           })
-          .sort({ createdAt: -1 });
+          .sort({ added_at: -1 });
         break;
 
       case 'customer':
