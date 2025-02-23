@@ -4,7 +4,7 @@ const Schema = mongoose.Schema;
 const packingTypeSchema = new Schema({
     type: {  type: String,  required: true },
     is_active: { type: Boolean, required: true,  default: true,},
-    createdAt: { type: Date,  default: Date.now },
+    added_at: { type: Date,  default: Date.now },
 });
 
 module.exports = PackagingType = mongoose.model('packing-type', packingTypeSchema);

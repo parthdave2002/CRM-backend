@@ -40,4 +40,11 @@ router.use('/banner', bannerdata);
 const taglogdata = require('./api/taglog');
 router.use('/taglog', taglogdata);
 
+const leaddata = require('./api/lead.js');
+router.use('/lead', leaddata);
+
+const cropdata = require('./api/crop.js');
+router.use('/crop', cropdata);
+
+
 module.exports = router;
