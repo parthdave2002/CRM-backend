@@ -5,8 +5,8 @@ const cropSchema = new schema({
   name: { type: String, required: true },
   description: { type: String },
   is_active: { type: Boolean},
-  added_on: { type: Date, default: Date.now },
+  added_at: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('Crop', cropSchema);
+module.exports = mongoose.model('crop', cropSchema);
 
