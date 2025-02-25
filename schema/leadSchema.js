@@ -10,7 +10,7 @@ const leadSchema = new schema({
   order_id : { type: schema.Types.ObjectId, ref: 'orders' },
   Comments : { type: String },
   is_active : { type: Boolean, default: true },
-  added_from :{ type: String },
+  added_from :{ type: String , enum: ['contactus', 'help', 'order'] },
   added_at : { type: Date, default: Date.now },
 });
 
