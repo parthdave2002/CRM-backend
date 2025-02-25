@@ -16,6 +16,7 @@ router.get('/user-search',  userModule.GetUserSearch);
 router.get('/deluser',   userModule.DeleteUser);
 router.get('/detailview',   userModule.GetUserDetail);
 router.post('/add-user',  uploadHelper.uploadFiles('public/user', 'single', 'user_pic'), userModule.PostUser);
+router.put('/update-user',  authentication, uploadHelper.uploadFiles('public/user', 'single', 'user_pic'), userModule.UpdateUserImage);
 // /USERlIST API CODE END
 
 router.post('/login', userModule.Login);

@@ -43,8 +43,7 @@ userController.GetAllUser = async (req, res, next) => {
     populate = [{ path: 'roles', select: 'role_title' }];
 
     const pulledData = await otherHelper.getQuerySendResponse(userSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    let AccessData = await getAccessData(req);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, { pulledData: pulledData.data, AccessData: AccessData }, config.gets, page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, config.gets, page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
@@ -133,6 +132,36 @@ userController.PostUser = async (req, res, next) => {
     next(err);
   }
 };
+
+userController.UpdateUserImage = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is required" });
+    }
+
+    let profilePic = null;
+    if (req?.file) {
+      profilePic = req.file.filename; // Get uploaded file name
+    }
+
+    const updatedUser = await userSch.findByIdAndUpdate(
+      { _id: userId },
+      { $set: { user_pic: profilePic } },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "User not found", null);
+    }
+
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedUser, null, "User image updated successfully", null);
+  } catch (err) {
+    next(err);
+  }
+};
+
 // User List Api Code End
 
 userController.validLoginResponse = async (req, user, next) => {
@@ -274,12 +303,17 @@ userController.Login = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, errors, errors.password, null);
     }
     let rolePermissions = [];
+    let user_img = "";
 
     if (user.role) {
       rolePermissions = await roleAccessModel.find({ role_id: user.role }).select("permissions module_name");
     }
+    if (user) {
+      user_img = await userSch.findOne({ _id: user.id }).select("user_pic");
+    }
     const { token, payload } = await userController.validLoginResponse(req, user, next);
     payload.rolePermissions = rolePermissions;
+    payload.user_img = user_img;
     return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, "Login Successful", token);
   } catch (err) {
     console.error("Error in Login API:", err);
