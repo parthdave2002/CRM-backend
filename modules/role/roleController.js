@@ -61,7 +61,7 @@ roleController.DeleteRole = async (req, res, next) => {
         deleted_at: new Date(),
       },
     });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, theme, null, 'theme delete', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, theme, null, 'Role deleted successfully', null);
   } catch (err) {
     next(err);
   }

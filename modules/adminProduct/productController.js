@@ -12,7 +12,9 @@ productController.getAllProductList = async (req, res, next) => {
       const searchRegex = { $regex: req.query.search, $options: 'i' };
       searchQuery = { $or: [{ name: searchRegex }] };
     }
-    selectQuery = 'product_pic name price  description category avl_qty is_active added_at';
+    selectQuery = 'product_pics name price  description categories avl_qty is_active added_at';
+    populate = [{ path: 'categories', select: 'name' }];  
+        
     const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Product Data get successfully", page, size, pulledData.totalData);
   } catch (err) {
@@ -23,9 +25,21 @@ productController.getAllProductList = async (req, res, next) => {
 productController.AddProductData = async (req, res, next) => {
   try {
     const Product = req.body;
-    if (req.file) {
-      Product.product_pic = req.file.filename; 
+    if (req.files) {
+      Product.product_pics = req.files.map(file => file.filename);
     }
+    if (typeof Product.description === "string") {
+      try {
+        Product.description = JSON.parse(Product.description);
+      } catch (error) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, "Invalid description format", null);
+      }
+    }
+
+    if (!Array.isArray(Product.description)) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, "Description must be an array", null);
+    }
+    Product.description = Product.description.map(desc => Object.assign({}, desc));
 
     if (Product._id) {
       const update = await productSch.findByIdAndUpdate(Product._id, { $set: Product }, { new: true });

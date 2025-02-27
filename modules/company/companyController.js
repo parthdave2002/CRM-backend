@@ -1,7 +1,6 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const companySch = require('../../schema/companySchema');
-const { getAccessData } = require('../../helper/Access.helper');
 const companyController = {};
 
 companyController.GetCompanylist = async (req, res, next) => {
@@ -18,8 +17,7 @@ companyController.GetCompanylist = async (req, res, next) => {
       searchQuery = { is_active: true, ...searchQuery };
     }
     let pulledData = await otherHelper.getQuerySendResponse(companySch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    let AccessData = await getAccessData(req);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, {pulledData:pulledData.data,  AccessData: AccessData}, "company get successful!", page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "company get successful!", page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
