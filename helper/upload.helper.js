@@ -36,7 +36,7 @@ uploaderHelper.uploadFiles = (destinationPath, uploadTYpe, fieldData) => {
   });
 
   if (uploadTYpe === 'array') {
-    var upload = uploader.array(fieldData[0], fieldData[1]);
+    var upload = uploader.array(fieldData,10);
   } else if (uploadTYpe === 'fields') {
     var upload = uploader.fields(fieldData);
   } else if (uploadTYpe === 'single') {
