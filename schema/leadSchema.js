@@ -7,7 +7,7 @@ const leadSchema = new schema({
   purpose : { type: String },
   description : { type: String },
   taglog : { type: String },
-  order_id : { type: schema.Types.ObjectId, ref: 'orders' },
+  order_id : { type: String, ref: 'orders' },
   Comments : { type: String },
   is_active : { type: Boolean, default: true },
   added_from :{ type: String , enum: ['contactus', 'help', 'order'] },

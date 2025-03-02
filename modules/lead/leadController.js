@@ -8,6 +8,8 @@ leadController.getAlllead = async (req, res, next) => {
     const { added_from } = req.query;
     let filter = {};
 
+    console.log("added_from", added_from);
+    
     if (added_from) {
       if (Array.isArray(added_from)) {
         filter.added_from = { $in: added_from };
@@ -23,18 +25,16 @@ leadController.getAlllead = async (req, res, next) => {
   }
 };
 
-
 leadController.addlead = async (req, res, next) => {
   try {
-    console.log("Received Crop Data:", req.body); 
     const lead = new leadSch(req.body);
+    console.log("lead", lead);
     await lead.save();
-    return otherHelper.sendResponse(res, httpStatus.OK, true, lead, null,"Crop  created successfully", null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, lead, null,"Lead  created successfully", null);
   } catch (err) {
     next(err);
   }
 };
-
 
 leadController.updatelead = async (req, res, next) => {
   try {

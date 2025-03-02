@@ -22,13 +22,13 @@ orderController.getAllOrderList = async (req, res, next) => {
         { path: 'customer', model: 'customer', select: 'customer_name' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ];
-    if (req.query.search && req.query.search !== 'null') {
-      const searchResults = await orderSch.find({
-        $or: [{ order_id: { $regex: req.query.search, $options: 'i' } }],
-      });
-      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
-    }
+      if (req.query.search && req.query.search !== 'null') {
+        const searchResults = await orderSch.find({
+          $or: [{ order_id: { $regex: req.query.search, $options: 'i' } }],
+        });
+        if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+        return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
+      }
     }
 
     const pulledData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
@@ -70,20 +70,22 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
       if (order.products && Array.isArray(order.products)) {
         for (const product of order.products) {
           const productDetails = await productSch.findById(product.id);
-          if (productDetails) {
-            if (product.quantity > productDetails.avl_qty) {
-              return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
-            }
-            let subtotal = productDetails.price * product.quantity;
-            subtotal -= productDetails.discount;
-            const sGstAmount = subtotal * (productDetails.s_gst / 100);
-            const cGstAmount = subtotal * (productDetails.c_gst / 100);
-            const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
-            totalAmount += totalPriceForProduct;
+          if (!productDetails) {
+            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order ', null);
           }
+          if (product.quantity > productDetails.avl_qty) {
+            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
+          }
+          let subtotal = productDetails.price * product.quantity;
+          subtotal -= productDetails.discount;
+          const sGstAmount = subtotal * (productDetails.s_gst / 100);
+          const cGstAmount = subtotal * (productDetails.c_gst / 100);
+          const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
+          totalAmount += totalPriceForProduct;
         }
       }
       order.total_amount = totalAmount;
+      order.advisor_name = req.user.id;
       const newOrder = new orderSch(order);
       await newOrder.save();
       return otherHelper.sendResponse(res, httpStatus.OK, true, newOrder, null, 'Order created successfully', null);
@@ -111,17 +113,18 @@ orderController.UpdateOrder = async (req, res, next) => {
     if (updatedData.products && Array.isArray(updatedData.products)) {
       for (const product of updatedData.products) {
         const productDetails = await productSch.findById(product.id);
-        if (productDetails) {
-          if (product.quantity > productDetails.avl_qty) {
-            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
-          }
-          let subtotal = productDetails.price * product.quantity;
-          subtotal -= productDetails.discount;
-          const sGstAmount = subtotal * (productDetails.s_gst / 100);
-          const cGstAmount = subtotal * (productDetails.c_gst / 100);
-          const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
-          totalAmount += totalPriceForProduct;
+        if (!productDetails) {
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order ', null);
         }
+        if (product.quantity > productDetails.avl_qty) {
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
+        }
+        let subtotal = productDetails.price * product.quantity;
+        subtotal -= productDetails.discount;
+        const sGstAmount = subtotal * (productDetails.s_gst / 100);
+        const cGstAmount = subtotal * (productDetails.c_gst / 100);
+        const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
+        totalAmount += totalPriceForProduct;
       }
     }
     updatedData.total_amount = totalAmount;
