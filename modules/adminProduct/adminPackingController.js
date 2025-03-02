@@ -7,6 +7,18 @@ const adminPackingController = {};
 adminPackingController.getAllPackingList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+
+    if (req.query.id) {
+      const user = await req.query.id.findById(req.query.id);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Packing Data found', null);
+    }
+    if (req.query.search && req.query.search !== 'null') {
+      const searchResults = await packingtypeSch.find({
+        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
+      });
+      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search data found', page, size, searchResults.length);
+    }
     const pulledData = await otherHelper.getQuerySendResponse(packingSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Packing Data get successfully", page, size, pulledData.totalData);
   } catch (err) {

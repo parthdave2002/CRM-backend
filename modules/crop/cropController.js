@@ -7,12 +7,17 @@ const cropController = {};
 cropController.getAllcrop = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-   
-       if (req.query.search) {
-         const searchRegex = { $regex: req.query.search, $options: 'i' };
-         searchQuery = { $or: [{ type: searchRegex }] };
-       }
-   
+    if (req.query.id) {
+      const user = await cropSch.findById(req.query.id);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Crop data found', null);
+    }
+    if (req.query.search && req.query.search !== 'null') {
+      const searchResults = await cropSch.find({
+        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
+      });
+      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Crop data found', page, size, searchResults.length);
+    }
        const pulledData = await otherHelper.getQuerySendResponse(cropSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
        return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Crop Data get successfully", page, size, pulledData.totalData);
   } catch (err) {
@@ -26,7 +31,7 @@ cropController.addcrop = async (req, res, next) => {
    
        if (Crop._id) {
          const update = await cropSch.findByIdAndUpdate(Crop._id, { $set: Crop }, { new: true });
-         return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Crop Data updated successfully ", null);
+         return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Crop created successfully ", null);
        } else {
    
            const existingCrop = await cropSch.findOne({ name: Crop.name });
@@ -36,7 +41,7 @@ cropController.addcrop = async (req, res, next) => {
          
          const newCrop = new cropSch(Crop);
          await newCrop.save();
-         return otherHelper.sendResponse(res, httpStatus.OK, true, newCrop, null, "Crop Created successfully", null);
+         return otherHelper.sendResponse(res, httpStatus.OK, true, newCrop, null, "Crop created successfully", null);
        }
   } catch (err) {
     next(err);
@@ -69,7 +74,7 @@ cropController.deletecrop = async (req, res, next) => {
     }
 
     const deleted = await cropSch.findByIdAndDelete(id);
-   return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Crop delete success', null);
+   return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Crop delete successfully', null);
   } catch (err) {
     next(err);
   }

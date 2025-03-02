@@ -14,7 +14,7 @@ adminPackingTypeController.getAllPackingTypeList = async (req, res, next) => {
     }
 
     const pulledData = await otherHelper.getQuerySendResponse(packingtypeSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Category Data get successfully", page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Packingtype Data get successfully", page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
@@ -31,12 +31,12 @@ adminPackingTypeController.AddPackingType = async (req, res, next) => {
 
         const existingCompany = await packingtypeSch.findOne({ type: PackingType.type });
         if(existingCompany){
-            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Packing type already exist ", null);
+            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Packingtype already exist ", null);
         }
       
       const newPackingType = new packingtypeSch(PackingType);
       await newPackingType.save();
-      return otherHelper.sendResponse(res, httpStatus.OK, true, newPackingType, null, "Packing type Created successfully", null);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, newPackingType, null, "Packingtype Created successfully", null);
     }
   } catch (err) {
     next(err);
@@ -47,16 +47,16 @@ adminPackingTypeController.DeletePackingType = async (req, res, next) => {
   try {
     const id = req.query.id;
     if(!id){
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Category id required', null);
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Packingtype id required', null);
     }
 
     const category = await packingtypeSch.findById(id);
     if(!category){
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Category not found', null);
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Packingtype not found', null);
     }
 
     const deleted = await packingtypeSch.findByIdAndDelete(id);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Category delete success', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Packingtype delete successfully', null);
   } catch (err) {
     next(err);
   }

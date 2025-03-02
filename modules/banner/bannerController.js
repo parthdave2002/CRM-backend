@@ -9,12 +9,21 @@ const bannerController = {};
 bannerController.getAllBannerList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    if (req.query.search) {
-      const searchRegex = { $regex: req.query.search, $options: 'i' };
-      searchQuery = { $or: [{ name: searchRegex }] };
+
+    if (req.query.id) {
+      const user = await bannerSch.findById(req.query.id);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Banner data found', null);
+    }
+
+    if (req.query.search && req.query.search !== 'null') {
+      const searchResults = await bannerSch.find({
+        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
+      });
+      if (searchResults.length === 0)   return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search data found', page, size, searchResults.length);
     }
     const pulledData = await otherHelper.getQuerySendResponse(bannerSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Banner Data get successfully", page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Banner data get successfully", page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }

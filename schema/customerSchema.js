@@ -10,7 +10,7 @@ const customerSchema = new schema({
   land_type : { type: String,  enum: ['acre', 'vigha']},
   irrigation_source : { type: String,  enum: ['barwell', 'canal']},
   irrigation_type : { type: String,  enum: ['drip', 'flood', 'sprinkler']},
-  crops:[{type : String}],
+  crops: [{ type: mongoose.Schema.Types.ObjectId, ref: 'crop', required: [true, 'At least one crop is required'] }],
   heard_about_agribharat : { type: String,  enum: ['newspaper', 'tv add', 'magazine', 'van campaign', 'facebook', 'Instagram', 'whatsapp', 'linkedIn', 'brochure', 'agri dukan', 'field officer']},
   address: { type: String},
   district: { type: String},
