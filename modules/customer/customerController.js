@@ -24,8 +24,8 @@ customerController.getAllCustomerList = async (req, res, next) => {
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
     }
 
-    populate = { path: 'crops', model: 'crop', select: 'name' };
-    selectQuery = 'customer_name mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at is_deleted';
+    populate = [{ path: 'crops', model: 'crop', select: 'name' },{ path: 'created_by', model: 'users', select: 'name' }];
+    selectQuery = 'customer_name mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at is_deleted created_by';
     if (req.query.id) {
       searchQuery = { _id: req.query.id };
     }

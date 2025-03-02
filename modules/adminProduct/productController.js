@@ -8,26 +8,28 @@ const productController = {};
 
 productController.getAllProductList = async (req, res, next) => {
   try {
-    if(req.query.id){
-     const user = await productSch.findById(req.query.id);
-     return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Product data found', null);
-   }
+    if (req.query.id) {
+      const user = await productSch.findById(req.query.id);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Product data found', null);
+    }
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
 
-    if (req.query.search && req.query.search !== "null"){
+    if (req.query.search && req.query.search !== 'null') {
       const searchResults = await productSch.find({
-        $or: [
-          { name: { $regex: req.query.search, $options: "i" } },
-        ], 
+        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
       });
-      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search Data found", page, size, searchResults.length);
+      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
     }
     selectQuery = 'product_pics name price  description categories avl_qty is_active added_at';
-    populate = [{ path: 'categories', select: 'name' }];  
-        
+    populate = [
+      { path: 'categories', model: 'categories', select: 'name' },
+      { path: 'company', model: 'company', select: 'name' },
+      { path: 'packagingtype', model: 'packing-type', select: 'type' },
+    ];
+
     const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Product Data get successfully", page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Product Data get successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
@@ -77,6 +79,12 @@ productController.DeleteProductData = async (req, res, next) => {
     if(!id){
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product id required', null);
     }
+
+    const Product = await productSch.findById(id);
+    if(!Product){
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
+    }
+
     if (Product.product_pics && Product.product_pics.length > 0) {
       Product.product_pics.forEach((filename) => {
         const filePath = path.join(__dirname, '../../public/product', filename);
@@ -84,10 +92,6 @@ productController.DeleteProductData = async (req, res, next) => {
           fs.unlinkSync(filePath);
         }
       });
-    }
-    const Product = await productSch.findById(id);
-    if(!Product){
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
     }
 
     const deleted = await productSch.findByIdAndDelete(id);

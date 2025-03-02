@@ -9,18 +9,18 @@ const { authorization, authentication } = require('../../middleware/auth.middlew
 // router.post('/role',  sanitize, validate, dModule.AddRoles);
 
 // Role Apis
-router.get('/get-role', dModule.GetRoles);
+router.get('/get-role',authentication, dModule.GetRoles);
 router.get('/roleview', authentication,authorization, dModule.GetRoleDetail);
-router.post('/add-role',  dModule.AddRoles);
-router.delete('/remove-role', dModule.DeleteRole);
+router.post('/add-role', authentication, dModule.AddRoles);
+router.delete('/remove-role',authentication, dModule.DeleteRole);
 router.get('/role-search', authentication,authorization,  dModule.GetRoleSearch);
 
 
-router.get('/role-permission',  dModule.GetRolePermission);
+router.get('/role-permission',authentication,  dModule.GetRolePermission);
 
 // Save Access Api Code Start
-router.post('/access/role', dModule.SaveAccessListFromRole);
-router.get('/access/rolelist',dModule.GetAccessListFromRole);
+router.post('/access/role',authentication, dModule.SaveAccessListFromRole);
+router.get('/access/rolelist',authentication,dModule.GetAccessListFromRole);
 
 
 module.exports = router;
