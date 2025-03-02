@@ -9,12 +9,19 @@ const adminCategoryController = {};
 adminCategoryController.getAllCategoryList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    if (req.query.search) {
-      const searchRegex = { $regex: req.query.search, $options: 'i' };
-      searchQuery = { $or: [{ name: searchRegex }] };
+    if (req.query.id) {
+      const user = await categorySch.findById(req.query.id);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Category Data found', null);
+    }
+    if (req.query.search && req.query.search !== 'null') {
+      const searchResults = await categorySch.find({
+        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
+      });
+      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search data found', page, size, searchResults.length);
     }
     const pulledData = await otherHelper.getQuerySendResponse(categorySch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Category Data get successfully", page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Category data get successfully", page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }

@@ -8,7 +8,7 @@ module.exports = {
   }, errorIn: {
     inputErrors: 'Invalid Inputs',
   },
-  roleSave: 'Roles saved successfully!',
+  roleSave: 'Role created successfully!',
   moduleSave: 'module saved successfully!',
   delete: 'data deleted successfully!',
   moduleGet: 'module get successful!',

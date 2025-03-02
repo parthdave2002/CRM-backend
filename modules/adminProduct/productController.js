@@ -1,16 +1,27 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const productSch = require('../../schema/productSchema');
+const path = require('path');
+const fs = require('fs');
 
 const productController = {};
 
 productController.getAllProductList = async (req, res, next) => {
   try {
+    if(req.query.id){
+     const user = await productSch.findById(req.query.id);
+     return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Product data found', null);
+   }
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
 
-    if (req.query.search) {
-      const searchRegex = { $regex: req.query.search, $options: 'i' };
-      searchQuery = { $or: [{ name: searchRegex }] };
+    if (req.query.search && req.query.search !== "null"){
+      const searchResults = await productSch.find({
+        $or: [
+          { name: { $regex: req.query.search, $options: "i" } },
+        ], 
+      });
+      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search Data found", page, size, searchResults.length);
     }
     selectQuery = 'product_pics name price  description categories avl_qty is_active added_at';
     populate = [{ path: 'categories', select: 'name' }];  
@@ -43,7 +54,7 @@ productController.AddProductData = async (req, res, next) => {
 
     if (Product._id) {
       const update = await productSch.findByIdAndUpdate(Product._id, { $set: Product }, { new: true });
-      return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Packing type Data updated successfully ", null);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Product updated successfully ", null);
     } else {
 
         const existingProduct = await productSch.findOne({ name: Product.name });
@@ -66,14 +77,21 @@ productController.DeleteProductData = async (req, res, next) => {
     if(!id){
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product id required', null);
     }
-
+    if (Product.product_pics && Product.product_pics.length > 0) {
+      Product.product_pics.forEach((filename) => {
+        const filePath = path.join(__dirname, '../../public/product', filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+    }
     const Product = await productSch.findById(id);
     if(!Product){
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
     }
 
     const deleted = await productSch.findByIdAndDelete(id);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Product delete success', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Product delete successfully', null);
   } catch (err) {
     next(err);
   }

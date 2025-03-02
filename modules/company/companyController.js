@@ -12,12 +12,23 @@ companyController.GetCompanylist = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.OK, true, company, null, 'all company get success!', null);
     }
 
+    if (req.query.id) {
+      const user = await companySch.findById(req.query.id);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Company data get successfully', null);
+    }
+    if (req.query.search && req.query.search !== 'null') {
+      const searchResults = await companySch.find({
+        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
+      });
+      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
+    }
 
     if (req.query.is_active) {
       searchQuery = { is_active: true, ...searchQuery };
     }
     let pulledData = await otherHelper.getQuerySendResponse(companySch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "company get successful!", page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Company  data get successfully!", page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }

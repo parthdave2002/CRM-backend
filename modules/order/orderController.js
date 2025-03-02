@@ -9,8 +9,8 @@ orderController.getAllOrderList = async (req, res, next) => {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
     if (req.query.id) {
       populate = [
-        { path: 'products.id', model: 'product' },
-        { path: 'customer', model: 'customer', select: 'customer_name  mobile_number address district taluka village pincode' },
+        { path: 'products.id', model: 'product', select: 'name  hsn_code discount batch_no price c_gst s_gst ' },
+        { path: 'customer', model: 'customer', select: 'customer_name  mobile_number alternate_number address district taluka village pincode' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ];
       selectQuery = 'order_id products customer advisor_name total_amount status added_at updated_at';
@@ -22,10 +22,13 @@ orderController.getAllOrderList = async (req, res, next) => {
         { path: 'customer', model: 'customer', select: 'customer_name' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ];
-      if (req.query.search) {
-        const searchRegex = { $regex: req.query.search, $options: 'i' };
-        searchQuery = { $or: [{ order_id: searchRegex }, { status: searchRegex }] };
-      }
+    if (req.query.search && req.query.search !== 'null') {
+      const searchResults = await orderSch.find({
+        $or: [{ order_id: { $regex: req.query.search, $options: 'i' } }],
+      });
+      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
+    }
     }
 
     const pulledData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
@@ -68,7 +71,11 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
         for (const product of order.products) {
           const productDetails = await productSch.findById(product.id);
           if (productDetails) {
-            const subtotal = productDetails.price * product.quantity;
+            if (product.quantity > productDetails.avl_qty) {
+              return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
+            }
+            let subtotal = productDetails.price * product.quantity;
+            subtotal -= productDetails.discount;
             const sGstAmount = subtotal * (productDetails.s_gst / 100);
             const cGstAmount = subtotal * (productDetails.c_gst / 100);
             const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
@@ -105,7 +112,11 @@ orderController.UpdateOrder = async (req, res, next) => {
       for (const product of updatedData.products) {
         const productDetails = await productSch.findById(product.id);
         if (productDetails) {
-          const subtotal = productDetails.price * product.quantity;
+          if (product.quantity > productDetails.avl_qty) {
+            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
+          }
+          let subtotal = productDetails.price * product.quantity;
+          subtotal -= productDetails.discount;
           const sGstAmount = subtotal * (productDetails.s_gst / 100);
           const cGstAmount = subtotal * (productDetails.c_gst / 100);
           const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;

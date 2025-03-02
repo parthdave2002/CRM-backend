@@ -12,13 +12,21 @@ const roleController = {};
 roleController.GetRoles = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10, false);
-   
     selectQuery = 'role_title description is_active is_deleted';
-    if (req.query.search) {
-      searchQuery = { role_title: { $regex: req.query.search, $options: 'i' }, ...searchQuery };
+
+    if (req.query.id) {
+      const user = await roleSch.findById(req.query.id);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Role Data found', null);
     }
-
-
+  
+    if (req.query.search && req.query.search !== 'null') {
+      const searchResults = await roleSch.find({
+        $or: [{ role_title: { $regex: req.query.search, $options: 'i' } }],
+      });
+      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
+    }
+    
     let pulledData = await otherHelper.getQuerySendResponse(roleSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     let AccessData = await getAccessData(req);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, {pulledData:pulledData.data,  AccessData: AccessData}, roleConfig.roleGet, page, size, pulledData.totalData);

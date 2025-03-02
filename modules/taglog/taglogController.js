@@ -6,11 +6,19 @@ const taglogController = {};
 
 taglogController.getAllTaglogList = async (req, res, next) => {
   try {
-    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    if (req.query.search) {
-      const searchRegex = { $regex: req.query.search, $options: 'i' };
-      searchQuery = { $or: [{ taglog_name: searchRegex }] };
+    const getid = req.query.id;
+    if(getid){
+      const user = await taglogSch.findById(getid);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Taglog Data Found', null);
     }
+    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    if (req.query.search && req.query.search !== "null"){
+      const searchResults = await taglogSch.find({
+        $or: [{ taglog_name: { $regex: req.query.search, $options: "i" } }], 
+      });
+      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search data found", page, size, searchResults.length);
+}
     const pulledData = await otherHelper.getQuerySendResponse(taglogSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Taglog Data get successfully", page, size, pulledData.totalData);
   } catch (err) {

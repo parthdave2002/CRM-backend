@@ -5,6 +5,7 @@ const userSch = require('../../schema/userSchema');
 const bugSch = require('../../schema/bugSchema');
 const roleSch = require('../../schema/roleSchema');
 const productSch = require("../../schema/productSchema");
+const orderSch = require("../../schema/orderSchema")
 const customerSch  =require("../../schema/customerSchema");
 
 const adminDashboardController = {};
@@ -30,13 +31,27 @@ const getPeriodDates = (period) => {
   return { startDate: startDate, endDate: endDate };
 };
 
+
 adminDashboardController.getDashboardData = async (req, res, next) => {
   try {
     const periods = ['daily', 'weekly', 'monthly'];
-    const products = await productSch.find({}).sort({ added_at: -1 }).limit(5);
-    const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5);
-    const customers = await customerSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5);
-
+    const products = await productSch
+      .find({})
+      .sort({ added_at: -1 })
+      .limit(5)
+      .populate([{ path: 'categories', model: 'categories', select: 'name' }])
+      .select('name categories avl_qty price hsn_code batch_no added_at');
+    const users = await userSch.find().sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
+    const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name district taluka village mobile_number is_deleted');
+    const orders = await orderSch
+      .find()
+      .sort({ added_at: -1 })
+      .limit(10)
+      .select('order_id customer advisor_name total_amount status added_at')
+      .populate([
+        { path: 'customer', model: 'customer', select: 'customer_name' },
+        { path: 'advisor_name', model: 'users', select: 'name' },
+      ]);
     const getTotalForPeriod = async (model, dateField, periods) => {
       const totals = {};
       for (const period of periods) {
@@ -51,7 +66,7 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
 
     const totalProducts = await getTotalForPeriod(productSch, 'added_at', periods);
     const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
-    // const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
+    const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
     const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
 
     return otherHelper.sendResponse(
@@ -62,8 +77,9 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
         products,
         users,
         customers,
+        orders,
         totalProducts,
-        // totalOrders,
+        totalOrders,
         totalUsers,
         totalCustomers,
       },
@@ -202,7 +218,7 @@ const getDataByType = async (startDate, endDate, type) => {
           .find({
             added_at: { $gte: start, $lte: end },
           })
-          .sort({ added_at: -1 });
+          .sort({ added_at: -1 }).populate([{ path: 'categories', model: 'categories', select: 'name' },{ path: 'company', model: 'company', select: 'name' },{ path: 'packagingtype', model: 'packing-type', select: 'type' }]);
         break;
 
       case 'user':
@@ -211,7 +227,9 @@ const getDataByType = async (startDate, endDate, type) => {
             added_at: { $gte: start, $lte: end },
             is_deleted: false,
           })
-          .sort({ added_at: -1 });
+          .sort({ added_at: -1 }).populate([
+            { path: 'role', model: 'roles', select: 'role_title' },
+          ]);
         break;
 
       case 'order':
@@ -219,7 +237,10 @@ const getDataByType = async (startDate, endDate, type) => {
           .find({
             added_at: { $gte: start, $lte: end },
           })
-          .sort({ added_at: -1 });
+          .sort({ added_at: -1 }).populate([
+            { path: 'customer', model: 'customer', select: 'customer_name' },
+            { path: 'advisor_name', model: 'users', select: 'name' },
+          ]);
         break;
 
       case 'customer':
@@ -227,7 +248,7 @@ const getDataByType = async (startDate, endDate, type) => {
           .find({
             added_at: { $gte: start, $lte: end },
           })
-          .sort({ added_at: -1 });
+          .sort({ added_at: -1 }).populate([{ path: 'crops', model: 'crop', select: 'name' },{ path: 'created_by', model: 'users', select: 'name' }]);
         break;
 
       default:
@@ -249,7 +270,7 @@ adminDashboardController.getReportData = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Missing parameters', null);
     }
     const data = await getDataByType(startDate, endDate, type);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, "data ,fetched successfully", null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, 'data ,fetched successfully', null);
   } catch (err) {
     next(err);
   }

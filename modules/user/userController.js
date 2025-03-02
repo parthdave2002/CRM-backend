@@ -34,10 +34,17 @@ userController.GetCheckUser = async (req, res, next) => {
 
 userController.GetAllUser = async (req, res, next) => {
   try {
+    if(req.query.id){
+      const user = await userSch.findById(req.query.id);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'User Data found', null);
+    }
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    if (req.query.search) {
-      const searchRegex = { $regex: req.query.search, $options: 'i' };
-      searchQuery = { $or: [{ name: searchRegex }, { email: searchRegex }] };
+    if (req.query.search && req.query.search !== "null"){
+      const searchResults = await userSch.find({
+        $or: [{ name: { $regex: req.query.search, $options: "i" } }], 
+      });
+      if (searchResults.length === 0)   return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search Data found", page, size, searchResults.length);
     }
     selectQuery = 'name email password gender mobile_no date_of_joining  role user_id is_active';
     populate = [{ path: 'roles', select: 'role_title' }];
@@ -161,7 +168,6 @@ userController.UpdateUserImage = async (req, res, next) => {
     next(err);
   }
 };
-
 // User List Api Code End
 
 userController.validLoginResponse = async (req, user, next) => {
@@ -203,84 +209,6 @@ userController.validLoginResponse = async (req, user, next) => {
   }
 };
 
-
-
-// userController.ForgotPassword = async (req, res, next) => {
-//   try {
-//     const email = req.body.email.toLowerCase();
-//     const errors = {};
-//     const user = await userSch.findOne({ email });
-//     const data = { email };
-//     if (!user) {
-//       errors.email = 'Email not found';
-//       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, data, errors, errors.email, null);
-//     }
-//     const currentDate = new Date();
-//     if (user.password_reset_request_date) {
-//       const diff = parseInt((currentDate - user.password_reset_request_date) / (1000 * 60)); //in minute
-//       if (diff < 10) {
-//         return otherHelper.sendResponse(res, httpStatus.OK, true, { email }, null, 'Email Already Sent, Check your Inbox', null);
-//       }
-//     }
-//     user.password_reset_code = otherHelper.generateRandomHexString(6);
-//     user.password_reset_request_date = currentDate;
-//     const update = await userSch.findByIdAndUpdate(
-//       user._id,
-//       {
-//         $set: {
-//           password_reset_code: user.password_reset_code,
-//           password_reset_request_date: user.password_reset_request_date,
-//         },
-//       },
-//       { new: true },
-//     );
-//     const forgot_password_mail_template = await getSetting('template', 'email', 'forgot_password_mail_template');
-//     const renderedMail = await renderMail.renderTemplate(
-//       forgot_password_mail_template,
-//       {
-//         name: user.name,
-//         email: user.email,
-//         code: user.password_reset_code,
-//       },
-//       user.email,
-//     );
-
-//     if (renderMail.error) {
-//       console.log('render mail error: ', renderMail.error);
-//     } else {
-//       emailHelper.send(renderedMail, next);
-//     }
-
-//     const msg = `Password Reset Code For ${email} is sent to email`;
-//     return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, msg, null);
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
-// userController.ResetPassword = async (req, res, next) => {
-//   try {
-//     let { email, code, password } = req.body;
-//     email = email.toLowerCase();
-//     const user = await userSch.findOne({ email, password_reset_code: code });
-//     const data = { email };
-//     const errors = {};
-//     if (!user) {
-//       errors.email = 'Invalid Password Reset Code';
-//       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, data, errors, errors.email, null);
-//     }
-//     let salt = await bcrypt.genSalt(10);
-//     let hashPw = await bcrypt.hash(password, salt);
-//     const d = await userSch.findByIdAndUpdate(user._id, { $set: { password: hashPw, last_password_change_date: Date.now(), email_verified: true }, $unset: { password_reset_code: 1, password_reset_request_date: 1 } }, { new: true });
-//     // Create JWT payload
-
-//     const { token, payload } = await userController.validLoginResponse(req, d, next);
-//     return otherHelper.sendResponse(res, httpStatus.OK, true, payload, null, null, token);
-//   } catch (err) {
-//     return next(err);
-//   }
-// };
-
 userController.Login = async (req, res, next) => {
   try {
     let errors = {};
@@ -320,7 +248,6 @@ userController.Login = async (req, res, next) => {
     return next(err);
   }
 };
-
 
 userController.GetProfile = async (req, res, next) => {
   try {
