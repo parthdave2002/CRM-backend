@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const customerController = require('../../modules/customer/customerController');
-const { authentication } = require('../../middleware/auth.middleware');
+const { authentication, authorization } = require('../../middleware/auth.middleware');
 
-router.get('/get-customers',authentication, customerController.getAllCustomerList);
-router.post('/add-customer',authentication,  customerController.AddCustomerData);
-router.put('/update-customer/:id',authentication,  customerController.updateCustomerData);
-router.delete('/remove-customer',authentication,  customerController.DeleteCustomerData);
-router.put('/change-status',authentication,  customerController.changeStatus);
+router.get('/get-customers',authentication,authorization("Customer"), customerController.getAllCustomerList);
+router.post('/add-customer',authentication,authorization("Customer"),  customerController.AddCustomerData);
+router.put('/update-customer/:id',authentication,authorization("Customer"),  customerController.updateCustomerData);
+router.delete('/remove-customer',authentication,authorization("Customer"),  customerController.DeleteCustomerData);
+router.put('/change-status',authentication,authorization("Customer"),  customerController.changeStatus);
 
 
 module.exports = router;

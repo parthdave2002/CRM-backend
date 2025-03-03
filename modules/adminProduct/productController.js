@@ -23,8 +23,8 @@ productController.getAllProductList = async (req, res, next) => {
     }
     selectQuery = 'product_pics name price  description categories avl_qty is_active added_at';
     populate = [
-      { path: 'categories', model: 'categories', select: 'name' },
-      { path: 'company', model: 'company', select: 'name' },
+      { path: 'categories', model: 'categories', select: 'name_eng' },
+      { path: 'company', model: 'company', select: 'name_eng' },
       { path: 'packagingtype', model: 'packing-type', select: 'type' },
     ];
 
