@@ -37,16 +37,17 @@ companyController.GetCompanylist = async (req, res, next) => {
 companyController.AddCompany = async (req, res, next) => {
   try {
     const Company = req.body;
+
     if (Company._id) {
       const update = await companySch.findByIdAndUpdate(Company._id, { $set: Company }, { new: true });
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Company Data updated successfully ", null);
     } else {
-
-      const existingCompany = await companySch.findOne({ name: Company.name });
-      if(existingCompany){
-        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Company already exist ", null);
-      }
+      const enexistingCompany = await companySch.findOne({ name_eng: Company.name_eng });
+      if(enexistingCompany) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "English company name already exist ", null);
       
+      const guexistingCompany = await companySch.findOne({ name_guj: Company.name_guj });
+      if(guexistingCompany) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Gujarati company name already exist ", null);
+    
       const newcompany = new companySch(Company);
       await newcompany.save();
       return otherHelper.sendResponse(res, httpStatus.OK, true, newcompany, null, "Company Created successfully", null);
@@ -59,13 +60,13 @@ companyController.AddCompany = async (req, res, next) => {
 companyController.DeleteCompany = async (req, res, next) => {
   try {
     const id = req.query.id;
-    const theme = await companySch.findByIdAndUpdate(id, {
-      $set: {
-        is_deleted: true,
-        deleted_at: new Date(),
-      },
-    });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, theme, null, 'company delete successfully', null);
+
+    if(!id){
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Company id required', null);
+    }
+
+    const theme = await companySch.findByIdAndDelete(id);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, theme, null, 'Company delete successfully', null);
   } catch (err) {
     next(err);
   }

@@ -28,11 +28,11 @@ adminPackingTypeController.AddPackingType = async (req, res, next) => {
       const update = await packingtypeSch.findByIdAndUpdate(PackingType._id, { $set: PackingType }, { new: true });
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Packing type Data updated successfully ", null);
     } else {
+      const enexistingPackingType = await packingtypeSch.findOne({ type_eng: PackingType.type_eng });
+      if(enexistingPackingType) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "English Packingtype already exist ", null);
 
-        const existingCompany = await packingtypeSch.findOne({ type: PackingType.type });
-        if(existingCompany){
-            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Packingtype already exist ", null);
-        }
+      const guexistingPackingType = await packingtypeSch.findOne({ type_guj: PackingType.type_guj });
+      if(guexistingPackingType) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Gujarati Packingtype already exist ", null);
       
       const newPackingType = new packingtypeSch(PackingType);
       await newPackingType.save();
