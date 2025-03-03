@@ -35,7 +35,7 @@ adminCategoryController.AddCategory = async (req, res, next) => {
     }
 
     if (Category._id) {
-      const update = await categorySch.findByIdAndUpdate(Category._id, { $set: Category }, { new: true });
+      const update = await categorySch.findByIdAndUpdate(Category._id, { $set: Category, updated_at: new Date() }, { new: true });
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Category Data updated successfully ", null);
     } else {
 

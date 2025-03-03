@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const packingTypeSchema = new Schema({
-    type: {  type: String,  required: true },
+    type_eng: {  type: String,  required: true },
+    type_guj: {  type: String,  required: true },
     is_active: { type: Boolean, required: true,  default: true,},
     added_at: { type: Date,  default: Date.now },
 });

@@ -2,8 +2,10 @@ const mongoose = require('mongoose');
 const schema = mongoose.Schema;
 
 const cropSchema = new schema({
-  name: { type: String, required: true },
-  description: { type: String },
+  name_eng: { type: String, required: true },
+  name_guj: { type: String, required: true },
+  description_eng: { type: String },
+  description_guj: { type: String },
   is_active: { type: Boolean},
   added_at: { type: Date, default: Date.now },
 });

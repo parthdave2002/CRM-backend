@@ -105,16 +105,13 @@ userController.PostUser = async (req, res, next) => {
           profilePic = req.file.filename; 
       }
 
+      const existingUserName = await userSch.findOne({name : req.body.name})
+      if(existingUserName) return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'Username already exist!', null);
+
       let email = req.body.email && req.body.email.toLowerCase();
       const existingUser = await userSch.findOne({email : email})
       if(existingUser){
         return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user email already exist!', null);
-      }
-
-      let username = req.body.username && req.body.username.toLowerCase();
-      const existingUsername = await userSch.findOne({name : username})
-      if(existingUsername){
-        return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'username already exist!', null);
       }
 
       const existingMobile = await userSch.findOne({mobile_no : user.mobile_no})
