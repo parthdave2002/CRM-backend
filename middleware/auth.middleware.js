@@ -18,26 +18,26 @@ authMiddleware.breakcheck = async (req, res, next) => {
   try {
     const authorizationHeader = req.headers.authorization;
     if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
-    console.log('Bearer token not found in headers');
-    return;
-  }
-
-    const token = authorizationHeader.split(' ')[1];
-    console.log('Bearer token ',token);
- 
-    const loginLog = await loginLogSch.findOne({ token: token });
-    if (loginLog) {
-      console.log("User ID:", loginLog.user_id);
-    } else {
-      console.log("User not found");
+      console.log('Bearer token not found in headers');
+      return;
     }
 
-    return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'You on break ', null);  
+    const token = authorizationHeader.split(' ')[1];
+    console.log('Bearer token ', token);
+
+    const loginLog = await loginLogSch.findOne({ token: token });
+    if (loginLog) {
+      console.log('User ID:', loginLog.user_id);
+    } else {
+      console.log('User not found');
+    }
+
+    return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'You on break ', null);
   } catch (err) {
     return next(err);
   }
-}
-  
+};
+
 authMiddleware.retrieveClientInfo = async (req, res, next) => {
   try {
     let platform = req.headers['platform'];
@@ -74,7 +74,7 @@ authMiddleware.authentication = async (req, res, next) => {
     }
     return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, token, 'Token not found', null);
   } catch (err) {
-    return next(err); 
+    return next(err);
   }
 };
 
@@ -85,31 +85,30 @@ authMiddleware.socketauth = async (req, res, next) => {
     // console.log("req.headers.authorization",req.headers.authorization)
     // console.log("req.headers.token",req.headers.token)
     // const token = req.headers.authorization || req.headers.token;
-    const token =  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY0ZmYwZWVjMGU4NjU1MTA0MGRlNzc3YSIsIm5hbWUiOiJOaXJhdiIsImVtYWlsIjoibmlyYXZAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJyb2xlcyI6W3siX2lkIjoiNjRmZjBkMGI1Mjc1MGQyZjk0N2Q4NjgzIiwicm9sZV90aXRsZSI6IkNTUiJ9XSwiaWF0IjoxNzAxOTMxNDExLCJleHAiOjE3Mzc5MzE0MTF9.lrZoHz_HOyF6VknwTFVVpKgBIUQsqqG1bPXmORsIupE';
+    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY0ZmYwZWVjMGU4NjU1MTA0MGRlNzc3YSIsIm5hbWUiOiJOaXJhdiIsImVtYWlsIjoibmlyYXZAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJyb2xlcyI6W3siX2lkIjoiNjRmZjBkMGI1Mjc1MGQyZjk0N2Q4NjgzIiwicm9sZV90aXRsZSI6IkNTUiJ9XSwiaWF0IjoxNzAxOTMxNDExLCJleHAiOjE3Mzc5MzE0MTF9.lrZoHz_HOyF6VknwTFVVpKgBIUQsqqG1bPXmORsIupE';
     // console.log("token>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",token.length);
     // const token =  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjVjM2IyNDRmOWVmNTEwMTcyY2QxZGNiMCIsIm5hbWUiOiJXYWZ0RW5naW5lIEFkbWluIiwiZW1haWwiOiJhZG1pbkB3YWZ0ZW5naW5lLm9yZyIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6W3siX2lkIjoiNWJmN2FlMzY5NGRiMDUxZjU0ODZmODQ1Iiwicm9sZV90aXRsZSI6IlN1cGVyIEFkbWluIn1dLCJpbWFnZSI6eyJmaWVsZG5hbWUiOiJmaWxlIiwib3JpZ2luYWxuYW1lIjoiYXZhdGFyLTIuanBnIiwiZW5jb2RpbmciOiI3Yml0IiwibWltZXR5cGUiOiJpbWFnZS9qcGVnIiwiZGVzdGluYXRpb24iOiJwdWJsaWMvdXNlci8iLCJmaWxlbmFtZSI6IjQ3NUZDNjFBOTBEM0IzMy1hdmF0YXItMi5qcGciLCJwYXRoIjoicHVibGljXFx1c2VyXFw0NzVGQzYxQTkwRDNCMzMtYXZhdGFyLTIuanBnIiwic2l6ZSI6Mzc1NzV9LCJpYXQiOjE2ODUwODA2MzIsImV4cCI6MTcyMTA4MDYzMn0.DwlQOqDpLdnsGlcZ--i3JSpLxCgYR8Yxiy4HdmMHq_8';
-    
+
     if (token && token.length) {
       const passed = await loginLogSch.findOne({ token: token, is_active: true });
-    //  console.log('findOne result ++++++++++++++++++ ', passed);
-    //   console.log("passed>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",passed.user_id);
-      if ( passed && passed.user_id ) {
+      //  console.log('findOne result ++++++++++++++++++ ', passed);
+      //   console.log("passed>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",passed.user_id);
+      if (passed && passed.user_id) {
         req.user_id = passed.user_id;
-      
+
         return next();
       } else {
-        console.log("No user_id found in passed.user_id.");
+        console.log('No user_id found in passed.user_id.');
       }
-  } else {
-        return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Session Expired', null);
-      }
-   
+    } else {
+      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Session Expired', null);
+    }
+
     return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, token, 'Token not found', null);
   } catch (err) {
     return next(err);
   }
 };
-
 
 authMiddleware.authenticationForLogout = async (req, res, next) => {
   try {
@@ -127,36 +126,30 @@ authMiddleware.authenticationForLogout = async (req, res, next) => {
   }
 };
 
-authMiddleware.authorization = async (req, res, next) => {
-
+authMiddleware.authorization = (module) => async (req, res, next) => {
   const methodPermissionMap = {
-    GET: "view",
-    POST: "add",
-    PUT: "edit",
-    DELETE: "delete",
+    GET: 'view',
+    POST: 'add',
+    PUT: 'edit',
+    DELETE: 'delete',
   };
 
   try {
-    const role  = req.user.roles;
-    const { method } = req; 
+    const role = req.user.roles;
+    if(role != "67b388a7d593423df0e24295"){
 
-    if (!role || !role.length) {
-      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, 'Role Not Found', null);
+      const { method } = req;
+      const requiredPermission = methodPermissionMap[method];
+
+      if (!role || !role.length)  return otherHelper.sendResponse(res, 401, false, null, null, 'Role Not Found', null);
+      const roleAccesses = await roleAccessModel.findOne({ role_id: role, module_name: module }).select('permissions');
+      if (!roleAccesses)  return otherHelper.sendResponse(res, 401, false, null, null, 'Module Access Restricted', null);
+
+      const userModulePermission = roleAccesses?.permissions;
+      if (!userModulePermission || !userModulePermission[requiredPermission])  return otherHelper.sendResponse(res, 401, false, null, null, 'Module Access Restricted', null);
+      
     }
 
-    const roleAccesses = await roleAccessModel.find({ role_id: role , module_name : "User" });
-    if (!roleAccesses.length) {
-      return otherHelper.sendResponse(res,HttpStatus.UNAUTHORIZED,false,null,null, "Resticted Access Role",null);
-    }
-
-    const requiredPermission = methodPermissionMap[method];
-    console.log("requiredPermission", requiredPermission);
-    
-    const permissions = roleAccesses[0]?.permissions;
-    if (!permissions || !permissions[requiredPermission]) {
-      return otherHelper.sendResponse(res, HttpStatus.UNAUTHORIZED, false, null, null, "permission denied", null);
-    }
-   
     next();
   } catch (err) {
     next(err);

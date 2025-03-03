@@ -3,8 +3,8 @@ const { authentication, authorization } = require('../../middleware/auth.middlew
 const router = express.Router();
 const packingController = require('../../modules/adminProduct/adminPackingController');
 
-router.get("/get-packing", authentication, packingController.getAllPackingList)
-router.post("/add-packing",authentication, packingController.AddPacking)
-router.delete("/remove-packing",authentication, packingController.DeletePacking)
+router.get("/get-packing", authentication,authorization("Packing"), packingController.getAllPackingList)
+router.post("/add-packing",authentication,authorization("Packing"), packingController.AddPacking)
+router.delete("/remove-packing",authentication,authorization("Packing"), packingController.DeletePacking)
 
 module.exports = router

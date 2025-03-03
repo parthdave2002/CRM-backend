@@ -11,7 +11,7 @@ router.get('/user/recent', authentication, authorization, adminDashboardControll
 router.get('/user/roles', authentication, authorization, adminDashboardController.GetAllUserGroupBy);
 router.get('/user/blogs', authentication, authorization, adminDashboardController.getNoOfBlogByBlogWriter);
 
-router.get('/details',authentication, adminDashboardController.getDashboardData);
-router.get('/report',authentication, adminDashboardController.getReportData);
+router.get('/details',authentication,authorization("Dashboard"), adminDashboardController.getDashboardData);
+router.get('/report',authentication,authorization("Dashboard"), adminDashboardController.getReportData);
 
 module.exports = router;
