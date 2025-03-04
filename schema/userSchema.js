@@ -18,7 +18,7 @@ const userSchema = new schema({
   pan_card : { type:Boolean ,required: true, default:false },
   bank_passbook : { type:Boolean ,required: true, default:false },
   is_active: { type: Boolean, required: true, default: false },
-  updated_at: { type: Date },
+  updated_at: { type: Date, default: Date.now },
   added_at: { type: Date, default: Date.now},
   added_by: { type: schema.Types.ObjectId, ref: 'users' },
   is_deleted: { type: Boolean, default: false},

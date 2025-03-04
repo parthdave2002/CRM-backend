@@ -55,7 +55,7 @@ adminPackingTypeController.DeletePackingType = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Packingtype not found', null);
     }
 
-    const deleted = await packingtypeSch.findByIdAndDelete(id);
+    const deleted = await packingtypeSch.findByIdAndUpdate(id, { is_deleted: true, is_active : false,updated_at: new Date() }, { new: true });
     return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Packingtype delete successfully', null);
   } catch (err) {
     next(err);

@@ -83,7 +83,7 @@ adminCategoryController.DeleteCategory = async (req, res, next) => {
       }
     }
 
-    const deleted = await categorySch.findByIdAndDelete(id);
+    const deleted = await categorySch.findByIdAndUpdate(id,  { is_deleted: true, is_active: false, updated_at: new Date() }, { new: true });
     return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Category delete success', null);
   } catch (err) {
     next(err);
