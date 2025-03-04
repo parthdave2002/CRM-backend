@@ -56,12 +56,6 @@ userController.GetAllUser = async (req, res, next) => {
   }
 };
 
-userController.GetUserSearch = async (req, res, next) => {
-  const users = await userSch.find({
-    $or: [{ name: { $regex: req.query.key } }],
-  });
-  return otherHelper.sendResponse(res, httpStatus.OK, true, { pulledData: users }, null, userConfig.get, null, 'Module Not Found');
-};
 
 userController.DeleteUser = async (req, res, next) => {
   try {
@@ -95,43 +89,34 @@ userController.GetUserDetail = async (req, res, next) => {
 userController.PostUser = async (req, res, next) => {
   try {
     const user = req.body;
-    if (user && user.id) {
-      const update = await userSch.findByIdAndUpdate({ _id: user.id }, { $set: user }, { $inc: { user_id: 1 } });
-      return otherHelper.sendResponse(res, httpStatus.OK, true, update, null, 'user update success!', null);
-    } else {
 
-      let profilePic = null;
-      if (req?.file) {
-          profilePic = req.file.filename; 
-      }
+    let profilePic = null;
+    if (req?.file) {
+      profilePic = req.file.filename;
+    }
 
-      const existingUserName = await userSch.findOne({name : req.body.name})
-      if(existingUserName) return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'Username already exist!', null);
+    const existingUserName = await userSch.findOne({ name: req.body.name })
+    if (existingUserName) return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'Username already exist!', null);
 
-      let email = req.body.email && req.body.email.toLowerCase();
-      const existingUser = await userSch.findOne({email : email})
-      if(existingUser){
-        return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user email already exist!', null);
-      }
+    let email = req.body.email && req.body.email.toLowerCase();
+    const existingUser = await userSch.findOne({ email: email })
+    if (existingUser) return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user email already exist!', null);
+    
+    const existingMobile = await userSch.findOne({ mobile_no: user.mobile_no })
+    if (existingMobile)  return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user mobile  already exist!', null);
+    
+    let salt = await bcrypt.genSalt(10);
+    let hashPwd = await bcrypt.hash(req.body.password, salt);
 
-      const existingMobile = await userSch.findOne({mobile_no : user.mobile_no})
-      if(existingMobile){
-        return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'user mobile  already exist!', null);
-      }
-
-      let salt = await bcrypt.genSalt(10);
-      let hashPwd = await bcrypt.hash(req.body.password, salt);
-
-      const data = await userSch.create({
-        ...req.body,
-        password: hashPwd, 
-        user_pic: profilePic, 
+    const data = await userSch.create({
+      ...req.body,
+      password: hashPwd,
+      user_pic: profilePic,
     });
 
-      // const newUser = new userSch(user);
-      // await newUser.save();
-      return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, 'user add success!', null);
-    }
+    // const newUser = new userSch(user);
+    // await newUser.save();
+    return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, 'user add success!', null);
   } catch (err) {
     next(err);
   }
@@ -139,28 +124,21 @@ userController.PostUser = async (req, res, next) => {
 
 userController.UpdateUserImage = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.body.id;
+    const user = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ success: false, message: "User ID is required" });
-    }
+    if (!userId) return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "User id not found", null);
 
-    let profilePic = null;
+    let updateData = {
+      $set: { ...user, updated_at: new Date() },
+    };
+
     if (req?.file) {
-      profilePic = req.file.filename; // Get uploaded file name
+      updateData.$set.user_pic = req.file.filename;
     }
 
-    const updatedUser = await userSch.findByIdAndUpdate(
-      { _id: userId },
-      { $set: { user_pic: profilePic } },
-      { new: true }
-    );
-
-    if (!updatedUser) {
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "User not found", null);
-    }
-
-    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedUser, null, "User image updated successfully", null);
+    const updatedUser = await userSch.findByIdAndUpdate( userId, updateData, { new: true } );
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedUser, null, 'user update success!', null);
   } catch (err) {
     next(err);
   }
