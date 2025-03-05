@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 const schema = mongoose.Schema;
 
 const companySchema = new schema({
-    name_eng: { type: String,  required: true, unique: true },
-    name_guj: { type: String,  required: true, unique: true },
+    name_eng: { type: String,  required: true},
+    name_guj: { type: String,  required: true},
     description: { type: String,  required: true, },
     is_active: { type: Boolean, required: true,  default: true,},
     added_at: { type: Date,  default: Date.now},

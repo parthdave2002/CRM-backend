@@ -6,5 +6,6 @@ const packingTypeController = require('../../modules/adminProduct/adminPackingTy
 router.get("/",authentication,authorization("Packing Type"), packingTypeController.getAllPackingTypeList)
 router.post("/add-packing-type",authentication,authorization("Packing Type"), packingTypeController.AddPackingType)
 router.delete("/remove-packing-type",authentication,authorization("Packing Type"), packingTypeController.DeletePackingType)
+router.delete("/status-packing-type",authentication,authorization("Packing Type"), packingTypeController.changeStatus)
 
 module.exports = router

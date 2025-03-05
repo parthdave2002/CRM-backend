@@ -6,10 +6,7 @@ const leadController = {};
 leadController.getAlllead = async (req, res, next) => {
   try {
     const { added_from } = req.query;
-    let filter = {};
-
-    console.log("added_from", added_from);
-    
+    let filter = { is_deleted: { $ne: true }};
     if (added_from) {
       if (Array.isArray(added_from)) {
         filter.added_from = { $in: added_from };
@@ -17,6 +14,7 @@ leadController.getAlllead = async (req, res, next) => {
         filter.added_from = added_from; 
       }
     }
+    
     const leads = await leadSch.find(filter);
     return otherHelper.sendResponse(res, httpStatus.OK, true, leads, null,"Leads fetched successfully", null);
 
@@ -27,10 +25,14 @@ leadController.getAlllead = async (req, res, next) => {
 
 leadController.addlead = async (req, res, next) => {
   try {
-    const lead = new leadSch(req.body);
-    console.log("lead", lead);
-    await lead.save();
-    return otherHelper.sendResponse(res, httpStatus.OK, true, lead, null,"Lead  created successfully", null);
+    if (req.body.id) {
+      const update = await leadSch.findByIdAndUpdate(req.body.id, { comment : req.body.comment, is_deleted: true } , { new: true });
+      return otherHelper.sendResponse(res, httpStatus.OK, true, update, null, "Lead updated successfully ", null);
+    } else {
+      const lead = new leadSch(req.body);
+      await lead.save();
+      return otherHelper.sendResponse(res, httpStatus.OK, true, lead, null, "Lead  created successfully", null);
+    }
   } catch (err) {
     next(err);
   }
