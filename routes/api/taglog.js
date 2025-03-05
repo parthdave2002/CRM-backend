@@ -7,5 +7,6 @@ const { authentication, authorization } = require('../../middleware/auth.middlew
 router.get('/get-taglog',authentication,authorization("Taglog"), TaglogController.getAllTaglogList);
 router.post('/add-taglog',authentication,authorization("Taglog"), TaglogController.AddTaglog);
 router.delete('/remove-taglog',authentication,authorization("Taglog"), TaglogController.DeleteTaglog);
+router.delete('/status-taglog',authentication,authorization("Taglog"), TaglogController.changestatus);
 
  module.exports = router

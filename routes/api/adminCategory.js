@@ -7,5 +7,6 @@ const CategoryController = require('../../modules/adminProduct/adminCategoryCont
 router.get("/get-category",authentication,authorization("Category"), CategoryController.getAllCategoryList)
 router.post("/add-category",authentication, authorization("Category"),uploadHelper.uploadFiles('public/category', 'single', 'category_pic'), CategoryController.AddCategory)
 router.delete("/remove-category",authentication,authorization("Category"), CategoryController.DeleteCategory)
+router.delete("/status-category",authentication,authorization("Category"), CategoryController.changeStatus)
 
 module.exports = router

@@ -15,7 +15,8 @@ const { getAccessData } = require('../../helper/Access.helper');
 const userConfig = require('./userConfig');
 const sendEmail = require('../../helper/comman-email.helper');
 const userController = {};
-const tokenSchema = require("../../schema/tokenSchema")
+const tokenSchema = require("../../schema/tokenSchema");
+const orderSch = require('../../schema/orderSchema');
 
 userController.GetCheckUser = async (req, res, next) => {
   try {
@@ -39,6 +40,8 @@ userController.GetAllUser = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'User Data found', null);
     }
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    searchQuery = { ...searchQuery, is_deleted: false };
+
     if (req.query.search && req.query.search !== "null"){
       const searchResults = await userSch.find({
         $or: [{ name: { $regex: req.query.search, $options: "i" } }], 
@@ -60,8 +63,13 @@ userController.GetAllUser = async (req, res, next) => {
 userController.DeleteUser = async (req, res, next) => {
   try {
     const id = req.query.id;
-    const user = await userSch.findByIdAndDelete(id);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'User delete Succeessfully', null);
+    if (!id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'User id required', null);
+
+    const userdata = await userSch.findById(id);
+    if (!userdata) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'User not found', null);
+
+    const user = await userSch.findByIdAndUpdate(id, { is_deleted : true, is_active :false, updated_at: new Date() }, { new: true });
+    return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'User delete Successfully', null);
   } catch (err) {
     next(err);
   }

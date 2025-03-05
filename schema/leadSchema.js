@@ -12,6 +12,7 @@ const leadSchema = new schema({
   is_active : { type: Boolean, default: true },
   added_from :{ type: String , enum: ['contactus', 'help', 'order'] },
   added_at : { type: Date, default: Date.now },
+  is_deleted : { type:Boolean, default: false },
 });
 
 module.exports = leads = mongoose.model('leads', leadSchema);

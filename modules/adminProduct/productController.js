@@ -13,7 +13,8 @@ productController.getAllProductList = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Product data found', null);
     }
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-
+    searchQuery = { ...searchQuery, is_deleted: false };
+    
     if (req.query.search && req.query.search !== 'null') {
       const searchResults = await productSch.find({
         $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
@@ -76,25 +77,21 @@ productController.AddProductData = async (req, res, next) => {
 productController.DeleteProductData = async (req, res, next) => {
   try {
     const id = req.query.id;
-    if(!id){
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product id required', null);
-    }
+    if(!id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product id required', null);
 
     const Product = await productSch.findById(id);
-    if(!Product){
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
-    }
+    if(!Product) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
 
-    if (Product.product_pics && Product.product_pics.length > 0) {
-      Product.product_pics.forEach((filename) => {
-        const filePath = path.join(__dirname, '../../public/product', filename);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      });
-    }
+    // if (Product.product_pics && Product.product_pics.length > 0) {
+    //   Product.product_pics.forEach((filename) => {
+    //     const filePath = path.join(__dirname, '../../public/product', filename);
+    //     if (fs.existsSync(filePath)) {
+    //       fs.unlinkSync(filePath);
+    //     }
+    //   });
+    // }
 
-    const deleted = await productSch.findByIdAndDelete(id);
+    const deleted = await productSch.findByIdAndUpdate(id, {is_deleted: true, is_active: false}, {new: true});
     return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Product delete successfully', null);
   } catch (err) {
     next(err);
