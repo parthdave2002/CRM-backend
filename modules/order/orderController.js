@@ -50,6 +50,26 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
       const updatedOrder = await orderSch.findByIdAndUpdate(order._id, { $set: order }, { new: true });
       return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, 'Order updated successfully', null);
     } else {
+      if (order.order_type === 'future') {
+        if (!order.future_order_date) {
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date is required for future orders', null);
+        }
+        order.future_order_date = new Date(order.future_order_date);
+        if (isNaN(order.future_order_date.getTime())) {
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid future order date', null);
+        }
+        const today = new Date();
+        if (order.future_order_date < today) {
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date cannot be earlier than today', null);
+        }
+        order.added_at = null;
+        order.status = null;
+      } else if (order.order_type && order.order_type !== 'confirm') {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either "confirm" or "future"', null);
+      } else {
+        order.future_order_date = null;
+      }
+
       const today = new Date();
       const todayDate = today.toISOString().slice(2, 10).replace(/-/g, '');
       const lastOrder = await orderSch
@@ -63,15 +83,14 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
         orderSuffix = (lastOrderSuffix + 1).toString().padStart(4, '0');
       }
 
-      const generatedOrderId = `#AB-${todayDate}-${orderSuffix}`;
-      order.order_id = generatedOrderId;
+      order.order_id = `#AB-${todayDate}-${orderSuffix}`;
 
       let totalAmount = 0;
       if (order.products && Array.isArray(order.products)) {
         for (const product of order.products) {
           const productDetails = await productSch.findById(product.id);
           if (!productDetails) {
-            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order ', null);
+            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order', null);
           }
           if (product.quantity > productDetails.avl_qty) {
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
@@ -101,7 +120,6 @@ orderController.UpdateOrder = async (req, res, next) => {
     if (!id) {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order ID is required for update', null);
     }
-
     const existingOrder = await orderSch.findById(id);
     if (!existingOrder) {
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Order not found', null);
@@ -109,12 +127,34 @@ orderController.UpdateOrder = async (req, res, next) => {
 
     const { _id, updated_at, ...updatedData } = req.body;
 
+    if (updatedData.order_type === 'future') {
+      if (!updatedData.future_order_date) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date is required for future orders', null);
+      }
+      updatedData.future_order_date = new Date(updatedData.future_order_date);
+      if (isNaN(updatedData.future_order_date.getTime())) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid future order date', null);
+      }
+      const today = new Date();
+      if (updatedData.future_order_date < today) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date cannot be earlier than today', null);
+      }
+      updatedData.added_at = null;
+      updatedData.status = null;
+    } else if (updatedData.order_type && updatedData.order_type !== 'confirm') {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either "confirm" or "future"', null);
+    } else {
+      updatedData.future_order_date = null;
+      updatedData.added_at = Date.now();
+      updatedData.status = 'confirm';
+    }
+
     let totalAmount = 0;
     if (updatedData.products && Array.isArray(updatedData.products)) {
       for (const product of updatedData.products) {
         const productDetails = await productSch.findById(product.id);
         if (!productDetails) {
-          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order ', null);
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order', null);
         }
         if (product.quantity > productDetails.avl_qty) {
           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);

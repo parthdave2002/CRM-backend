@@ -22,10 +22,10 @@ productController.getAllProductList = async (req, res, next) => {
       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
     }
-    selectQuery = 'product_pics name price  description categories avl_qty is_active added_at';
+    // selectQuery = 'product_pics name price  description categories avl_qty is_active added_at';
     populate = [
-      { path: 'categories', model: 'categories', select: 'name_eng' },
-      { path: 'company', model: 'company', select: 'name_eng' },
+      { path: 'categories', model: 'categories', select: 'name_eng name_guj' },
+      { path: 'company', model: 'company', select: 'name_eng name_guj' },
       { path: 'packagingtype', model: 'packing-type', select: 'type' },
     ];
 
