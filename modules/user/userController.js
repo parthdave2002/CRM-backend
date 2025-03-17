@@ -50,7 +50,7 @@ userController.GetAllUser = async (req, res, next) => {
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search Data found", page, size, searchResults.length);
     }
     selectQuery = 'name email password gender mobile_no date_of_joining  role user_id is_active';
-    populate = [{ path: 'roles', select: 'role_title' }];
+    populate = [{ path: 'role',  model: 'roles', select: 'role_title' }];
 
     const pulledData = await otherHelper.getQuerySendResponse(userSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, config.gets, page, size, pulledData.totalData);

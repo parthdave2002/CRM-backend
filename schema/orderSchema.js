@@ -12,7 +12,9 @@ const orderSchema = new schema({
   customer: { type: schema.Types.ObjectId, required: true, ref: 'customer' },
   advisor_name: { type: schema.Types.ObjectId, required: true, ref: 'user' },
   total_amount: { type: Number, required: true },
-  status: { type: String, required: true, enum: ['confirmed', 'future', 'return'] },
+  order_type: { type: String, default: 'confirm', enum: ['confirm', 'future'] },
+  future_order_date: { type: Date, required: false },
+  status: { type: String, default: 'confirm', required: false, enum: ['confirm', 'cancel', 'return', null] },
   added_at: { type: Date, default: Date.now },
   updated_at: { type: Date },
 });
