@@ -8,6 +8,6 @@ router.post('/add-customer',authentication,authorization("Customer"),  customerC
 router.put('/update-customer/:id',authentication,authorization("Customer"),  customerController.updateCustomerData);
 router.delete('/remove-customer',authentication,authorization("Customer"),  customerController.DeleteCustomerData);
 router.put('/change-status',authentication,authorization("Customer"),  customerController.changeStatus);
-
+router.get('/matchnumber',authentication,  customerController.matchNumber);
 
 module.exports = router;

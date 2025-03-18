@@ -46,5 +46,7 @@ router.use('/lead', leaddata);
 const cropdata = require('./api/crop');
 router.use('/crop', cropdata);
 
+const complaindata = require('./api/complain');
+router.use('/complain', complaindata);
 
 module.exports = router;
