@@ -117,4 +117,17 @@ customerController.changeStatus = async (req, res, next) => {
   }
 };
 
+customerController.matchNumber = async (req, res, next) => {
+  try {
+    const number = req.query.number || req.body.number;
+    if (!number) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer Number is required', null);
+    }
+    const customer = await customerSch.findOne({ mobile_number: number });
+    return otherHelper.sendResponse(res,httpStatus.OK,  customer ? true : false,customer || null,null , customer ? 'Customer found' : 'Customer Number Not matched',null);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = customerController;
