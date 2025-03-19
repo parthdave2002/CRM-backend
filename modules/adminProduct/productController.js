@@ -26,7 +26,7 @@ productController.getAllProductList = async (req, res, next) => {
     populate = [
       { path: 'categories', model: 'categories', select: 'name_eng name_guj' },
       { path: 'company', model: 'company', select: 'name_eng name_guj' },
-      { path: 'packagingtype', model: 'packing-type', select: 'type' },
+      { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' },
     ];
 
     const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
