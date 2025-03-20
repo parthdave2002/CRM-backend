@@ -8,28 +8,27 @@ const productController = {};
 
 productController.getAllProductList = async (req, res, next) => {
   try {
+
+    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    const populateFields = [
+      { path: 'categories', model: 'categories', select: 'name_eng name_guj' },
+      { path: 'company', model: 'company', select: 'name_eng name_guj' },
+      { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }
+    ];
+
     if (req.query.id) {
-      const user = await productSch.findById(req.query.id);
+      const user = await productSch.findById(req.query.id).populate(populateFields);
       return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Product data found', null);
     }
-    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
     searchQuery = { ...searchQuery, is_deleted: false };
     
     if (req.query.search && req.query.search !== 'null') {
-      const searchResults = await productSch.find({
-        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
-      });
+      const searchResults = await productSch.find({  $or: [{ name: { $regex: req.query.search, $options: 'i' } }] });
       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
     }
-    // selectQuery = 'product_pics name price  description categories avl_qty is_active added_at';
-    populate = [
-      { path: 'categories', model: 'categories', select: 'name_eng name_guj' },
-      { path: 'company', model: 'company', select: 'name_eng name_guj' },
-      { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' },
-    ];
 
-    const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
+    const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populateFields);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Product Data get successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);
