@@ -3,15 +3,15 @@ const schema = mongoose.Schema;
 
 const productSchema = new schema({
   name: {
-    gujaratiname: { type: String, required: true, unique: true },
-    englishname: { type: String, required: true, unique: true },
+    gujaratiname: { type: String, required: true, unique: true , trim: true},
+    englishname: { type: String, required: true, unique: true , trim: true},
   },
   tech_name: {
-    gujarati_tech_name: { type: String, required: true, unique: true },
-    english_tech_name: { type: String, required: true, unique: true },
+    gujarati_tech_name: { type: String, required: true, unique: true , trim: true},
+    english_tech_name: { type: String, required: true, unique: true , trim: true},
   },
   packaging: { type: Number },
-  packagingtype: { type: schema.Types.ObjectId, required: true, ref: 'packing-type' },
+  packagingtype: { type: mongoose.Schema.Types.ObjectId,required: true, ref: 'packing-type' },
   price: { type: Number, required: true, default: 0 },
   discount: { type: Number, required: true, default: 0 },
   product_pics: [{ type: String, default: null }],
@@ -25,11 +25,10 @@ const productSchema = new schema({
   rating: { type: Number, default: 0 },
   description: [
     {
-      // id: { type: Number, required: true },
-      gujaratiHeader: { type: String, required: true },
-      englishHeader: { type: String, required: true },
-      gujaratiValue: { type: String, required: true },
-      englishValue: { type: String, required: true },
+      gujaratiHeader: { type: String, required: true , trim: true},
+      englishHeader: { type: String, required: true, trim: true },
+      gujaratiValue: { type: String, required: true, trim: true },
+      englishValue: { type: String, required: true , trim: true},
     },
   ],
   is_active: { type: Boolean, required: true, default: false },

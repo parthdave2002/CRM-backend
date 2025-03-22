@@ -1,6 +1,8 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const productSch = require('../../schema/productSchema');
+const companySch = require('../../schema/companySchema');
+const mongoose = require("mongoose");
 const path = require('path');
 const fs = require('fs');
 
@@ -8,28 +10,62 @@ const productController = {};
 
 productController.getAllProductList = async (req, res, next) => {
   try {
-
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    const populateFields = [
+
+    const populatedata =[
       { path: 'categories', model: 'categories', select: 'name_eng name_guj' },
       { path: 'company', model: 'company', select: 'name_eng name_guj' },
       { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }
     ];
 
     if (req.query.id) {
-      const user = await productSch.findById(req.query.id).populate(populateFields);
-      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Product data found', null);
-    }
+      console.log(req.query.id);
+      const user = await productSch.findById(req.query.id).populate(populatedata);
+      if (!user) {
+        return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Product not found', null);
+      }
+      const responseData = {
+        ...user.toObject(),
+        out_of_stock: user.avl_qty === 0 ? true : false,
+      };
+      return otherHelper.sendResponse( res,httpStatus.OK, true, responseData, null,user.avl_qty === 0 ? 'Out of Stock' : 'Product data found', null
+      );
+    }  
     searchQuery = { ...searchQuery, is_deleted: false };
     
     if (req.query.search && req.query.search !== 'null') {
-      const searchResults = await productSch.find({  $or: [{ name: { $regex: req.query.search, $options: 'i' } }] });
-      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
-    }
+      const regex = { $regex: req.query.search, $options: 'i' };
 
-    const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populateFields);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Product Data get successfully', page, size, pulledData.totalData);
+      const companyIds = await companySch.find({
+        $or: [{ name_eng: regex }, { name_guj: regex }],
+      }).select('_id');
+
+      const searchResults = await productSch.find({
+        $or: [
+          { 'name.englishname': regex },
+          { 'name.gujaratiname': regex },
+          { 'tech_name.english_tech_name': regex },
+          { 'tech_name.gujarati_tech_name': regex },
+          { company: { $in: companyIds.map(c => c._id) } }, 
+        ],
+      }).populate(populatedata).exec();
+
+      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+
+      const formattedResults = searchResults.map(product => ({
+        ...product.toObject(),
+        out_of_stock: product.avl_qty === 0 ? true : false,
+      }));
+
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedResults, ' Search Data found', page, size, formattedResults.length);
+    }
+    const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populatedata);
+    const formattedProducts = pulledData.data.map(product => ({
+      ...product.toObject(),
+      out_of_stock: product.avl_qty === 0 ? true : false,
+    }));
+
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedProducts, 'Product Data get successfully', page, size, formattedProducts.length);
   } catch (err) {
     next(err);
   }
@@ -97,7 +133,6 @@ productController.DeleteProductData = async (req, res, next) => {
   }
 };
 
-
 productController.ProductRelatedData = async (req, res, next) => {
   try {
     const  search = req.query.data;
@@ -114,6 +149,39 @@ productController.ProductRelatedData = async (req, res, next) => {
   }
 };
 
+productController.UpdateProductData = async (req, res, next) => {
+  try {
+    console.log("calll" ,req.body);
+    
+    let { id, ...updatedData } = req.body; 
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return otherHelper.sendResponse(res, 400, false, null, null, "Invalid Product ID", null);
+    }
+
+    const productId = new mongoose.Types.ObjectId(id);
+    if (typeof updatedData.description === "string") {
+      try {
+        updatedData.description = JSON.parse(updatedData.description);
+      } catch (error) {
+        return otherHelper.sendResponse(res, 400, false, null, null, "Invalid description format", null);
+      }
+    }
+
+    const updatedProduct = await productSch.findByIdAndUpdate(
+      productId,
+      { $set: updatedData },
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      return otherHelper.sendResponse(res, 404, false, null, null, "Product not found", null);
+    }
+    return otherHelper.sendResponse(res, 200, true, updatedProduct, null, "Product updated successfully", null);
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 module.exports = productController;

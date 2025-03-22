@@ -86,7 +86,7 @@ cropController.deletecrop = async (req, res, next) => {
     const isAssociated = await customerSch.findOne({ crops: id });
     if (isAssociated) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot Delete packing type as it is associated with a product', null);
 
-    const deleted = await cropSch.findByIdAndUpdate(id, { id_deleted : true, is_active: false ,updated_at: new Date() }, { new: true });
+    const deleted = await cropSch.findByIdAndUpdate(id, { is_deleted : true, is_active: false ,updated_at: new Date() }, { new: true });
     return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Crop delete successfully', null);
   } catch (err) {
     next(err);
