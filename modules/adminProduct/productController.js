@@ -151,21 +151,34 @@ productController.ProductRelatedData = async (req, res, next) => {
 
 productController.UpdateProductData = async (req, res, next) => {
   try {
-    console.log("calll" ,req.body);
-    
-    let { id, ...updatedData } = req.body; 
-
+    let { id, ...updatedData } = req.body;
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return otherHelper.sendResponse(res, 400, false, null, null, "Invalid Product ID", null);
     }
 
     const productId = new mongoose.Types.ObjectId(id);
-    if (typeof updatedData.description === "string") {
-      try {
-        updatedData.description = JSON.parse(updatedData.description);
-      } catch (error) {
-        return otherHelper.sendResponse(res, 400, false, null, null, "Invalid description format", null);
+    const existingProduct = await productSch.findById(productId);
+    if (!existingProduct) {
+      return otherHelper.sendResponse(res, 404, false, null, null, "Product not found", null);
+    }
+
+    if (req.files && req.files.length > 0) {
+      const newImages = req.files.map(file => file.filename);
+
+      if (existingProduct.product_pics && existingProduct.product_pics.length > 0) {
+        existingProduct.product_pics.forEach((image) => {
+          const imagePath = path.join(__dirname, "../../public/product", image);
+          if (fs.existsSync(imagePath)) {
+            try {
+              fs.unlinkSync(imagePath);
+            } catch (err) {
+              console.error("Error deleting file:", err);
+            }
+          }
+        });
       }
+
+      updatedData.product_pics = newImages;
     }
 
     const updatedProduct = await productSch.findByIdAndUpdate(
@@ -174,14 +187,10 @@ productController.UpdateProductData = async (req, res, next) => {
       { new: true }
     );
 
-    if (!updatedProduct) {
-      return otherHelper.sendResponse(res, 404, false, null, null, "Product not found", null);
-    }
     return otherHelper.sendResponse(res, 200, true, updatedProduct, null, "Product updated successfully", null);
   } catch (err) {
     next(err);
   }
 };
-
 
 module.exports = productController;
