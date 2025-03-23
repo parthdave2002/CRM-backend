@@ -193,4 +193,5 @@ productController.UpdateProductData = async (req, res, next) => {
   }
 };
 
+
 module.exports = productController;
