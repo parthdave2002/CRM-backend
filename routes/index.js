@@ -49,4 +49,7 @@ router.use('/crop', cropdata);
 const complaindata = require('./api/complain');
 router.use('/complain', complaindata);
 
+const salesExcutivedata = require('./api/salesExecutive');
+router.use('/sales-executive', salesExcutivedata);
+
 module.exports = router;

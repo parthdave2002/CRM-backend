@@ -8,5 +8,6 @@ router.get('/get-order',authentication,authorization("Order"), OrderController.g
 router.post('/add-order',authentication,authorization("Order"), OrderController.AddOrUpdateOrderData);
 router.put('/update-order',authentication,authorization("Order"), OrderController.UpdateOrder);
 router.delete('/remove-order',authentication,authorization("Order"), OrderController.DeleteOrderData);
+router.get('/get-callbacks', authentication, authorization('Order'), OrderController.GetCallBacks);
 
 module.exports = router
