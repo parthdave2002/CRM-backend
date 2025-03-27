@@ -7,10 +7,14 @@ const validateHelper = require('../helper/validate.helper');
 const validations = {};
 
 // Define validation rules
-const userValidationRules = {
-  name: [
+const ValidationRules = {
+  name_eng: [
     { condition: 'IsEmpty', msg: config.validate.empty },
-    { condition: 'IsLength', msg: config.validate.nameLength, option: { min: 2, max: 100 } }
+    { condition: 'IsLength', msg: config.validate.nameLength, option: { min: 2, max: 15 } }
+  ],
+  name_guj: [
+    { condition: 'IsEmpty', msg: config.validate.empty },
+    { condition: 'IsLength', msg: config.validate.nameLength, option: { min: 2, max: 15 } }
   ],
   email: [
     { condition: 'IsEmpty', msg: config.validate.empty },
@@ -25,69 +29,78 @@ const userValidationRules = {
   ],
   role_title: [
     { condition: 'IsEmpty', msg: config.validate.empty }
+  ],
+  description:[
+    { condition: 'IsEmpty', msg: config.validate.empty },
+    { condition: 'IsLength', msg: config.validate.nameLength, option: { min: 2, max: 100 } }
   ]
 };
 
-const sanitizeFields = (fields) => (req, res, next) => {
-  console.log("sanitizeFields -------", fields);
-
-  if (!fields || !Array.isArray(fields)) {
-    console.error("sanitizeFields: fields should be an array, but got:", fields);
-    return next(); // Prevent crashing
+const sanitizeFields = (fields) => { 
+  return async (req, res, next) => {
+  try {
+      const sanitizeArray = fields.map(data => ({ field:data,  sanitize: { trim: true } }));
+      await sanitizeHelper.sanitize(req, sanitizeArray);
+      next();
+  } catch (error) {
+    console.error("Sanitization error:", error);
+    next(error);
   }
-
-
-  const sanitizeArray = fields.map(field => ({
-    field:fields,
-    sanitize: { trim: true },
-  }));
-  console.log("sanitizeFields -------", fields);
-  sanitizeHelper.sanitize(req, sanitizeArray);
-  next();
+}
 };
-
-// const validateFields = (validationRules) => (req, res, next) => {
-//   console.log("Errorrrrr", validationRules);
-//   if (!validationRules || !Array.isArray(validationRules)) {
-//     console.error("validateFields: validationRules should be an array, but got:", validationRules);
-//     return next(); // Prevent crashing
-//   }
-//   const data = req.body;
-//   const errors = validateHelper.validation(data, validationRules);
-//   console.log("Errorrrrr", errors);
-  
-//   if (!isEmpty(errors)) {
-//     return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, errors, config.validate.invalidInput, null);
-//   }
-//   next();
-// };
 
 const validateFields = (validationRules) => (req, res, next) => {
-  console.log("Validating fields:", validationRules); 
-  next();  // Proceed to next middleware
+
+  if (!Array.isArray(validationRules) || validationRules.length === 0) {
+    console.error("Validation rules are missing or invalid.");
+    return next();
+  }
+
+  const errors = validateHelper.validation(req.body, validationRules);
+
+  // If errors exist, send a response
+  if (!isEmpty(errors)) {
+    return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, errors, null);
+  }
+ 
+  next();  
 };
 
 
-const getValidationRules = (fields) => {
-  console.log("fields", fields);
-  
-  return fields
-    .filter((field) => userValidationRules[field]) // Only return existing fields
+const getValidationRules = async (fields) => {
+  return await Promise.resolve(
+    fields.filter((field) => ValidationRules[field]) // Only return existing fields
     .map((field) => ({
       field,
-      validate: userValidationRules[field]
-    }));
+      validate: ValidationRules[field]
+    }))
+  )
 };
 
-validations.sanitizeAndValidate = (fields) => {
+validations.sanitizeAndValidate =  (fields) => {
   if (!fields || !Array.isArray(fields)) {
     console.error("sanitizeAndValidate: Expected an array, but got:", fields);
     return { sanitize: (req, res, next) => next(), validate: (req, res, next) => next() };
   }
   
-  const sanitize = sanitizeFields(fields);
-  const validate = validateFields(getValidationRules(fields));
-  return { sanitize, validate };
+  const sanitize =  sanitizeFields(fields);
+
+  return {
+    sanitize,
+    validate: async (req, res, next) => {
+      try {
+        const validationRules = await getValidationRules(fields); // Await the Promise to get rules
+        const validate = validateFields(validationRules);
+        return validate(req, res, next);
+      } catch (error) {
+        console.error("Validation error:", error);
+        next(error);
+      }
+    }
+  };
+  // const validationRules  = getValidationRules(fields);                                                          
+  // const validate = validateFields(validationRules);
+  // return { sanitize, validate };
 };
 
 module.exports = validations;

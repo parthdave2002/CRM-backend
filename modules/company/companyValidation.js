@@ -5,7 +5,7 @@ const otherHelper = require('../../helper/others.helper');
 const sanitizeHelper = require('../../helper/sanitize.helper');
 const validateHelper = require('../../helper/validate.helper');
 const roleConfig = require('./companyConfig');
-const companySch = require('./companySchema');
+// const companySch = require('./companySchema');
 const validations = {};
 
 validations.validateRole = async (req, res, next) => {
@@ -46,10 +46,10 @@ validations.validateRole = async (req, res, next) => {
   if (data._id) {
     company_filter = { ...company_filter, _id: { $ne: data._id } };
   }
-  const already_role = await companySch.findOne(company_filter);
-  if (already_role && already_role._id) {
-    errors = { ...errors, name: 'company already exist' };
-  }
+  // const already_role = await companySch.findOne(company_filter);
+  // if (already_role && already_role._id) {
+  //   errors = { ...errors, name: 'company already exist' };
+  // }
 
   if (!isEmpty(errors)) {
     return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, errors, roleConfig.errorIn.inputErrors, null);
