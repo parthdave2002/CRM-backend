@@ -26,7 +26,7 @@ module.exports = {
       isMongoId: 'This is not mongo id',
       isEightChar: 'The password must be at least 8 character',
       invalidInput: 'invalid input',
-      nameLength: 'This field should be between 2 to 100',
+      nameLength: 'This field should be between 2 to 15',
       isDate: 'This field must contain Date.',
       passLength: 'password must be at least 6 characters, max limit 30 characters',
       bioLength: 'length of bio should be between 5 to 500',
