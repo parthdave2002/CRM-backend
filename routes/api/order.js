@@ -9,5 +9,6 @@ router.post('/add-order',authentication,authorization("Order"), OrderController.
 router.put('/update-order',authentication,authorization("Order"), OrderController.UpdateOrder);
 router.delete('/remove-order',authentication,authorization("Order"), OrderController.DeleteOrderData);
 router.get('/get-callbacks', authentication, authorization('Order'), OrderController.GetCallBacks);
+router.patch('/update-future-order',authentication, OrderController.UpdateFutureOrder);
 
 module.exports = router
