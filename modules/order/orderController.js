@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const orderSch = require('../../schema/orderSchema');
 const productSch = require('../../schema/productSchema');
+const complainSch = require('../../schema/complainSchema');
 const orderController = {};
 
 orderController.getAllOrderList = async (req, res, next) => {
@@ -42,79 +43,6 @@ orderController.getAllOrderList = async (req, res, next) => {
   }
 };
 
-// orderController.AddOrUpdateOrderData = async (req, res, next) => {
-//   try {
-//     const order = req.body;
-//     if (order._id) {
-//       order.updated_at = Date.now();
-//       const updatedOrder = await orderSch.findByIdAndUpdate(order._id, { $set: order }, { new: true });
-//       return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, 'Order updated successfully', null);
-//     } else {
-//       if (order.order_type === 'future') {
-//         if (!order.future_order_date) {
-//           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date is required for future orders', null);
-//         }
-//         order.future_order_date = new Date(order.future_order_date);
-//         if (isNaN(order.future_order_date.getTime())) {
-//           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid future order date', null);
-//         }
-//         const today = new Date();
-//         if (order.future_order_date < today) {
-//           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date cannot be earlier than today', null);
-//         }
-//         order.added_at = null;
-//         order.status = null;
-//       } else if (order.order_type && order.order_type !== 'confirm') {
-//         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either "confirm" or "future"', null);
-//       } else {
-//         order.future_order_date = null;
-//       }
-
-//       const today = new Date();
-//       const todayDate = today.toISOString().slice(2, 10).replace(/-/g, '');
-//       const lastOrder = await orderSch
-//         .findOne({ order_id: new RegExp(`^#AB-${todayDate}`) })
-//         .sort({ order_id: -1, added_at: -1 })
-//         .limit(1);
-
-//       let orderSuffix = '0001';
-//       if (lastOrder) {
-//         const lastOrderSuffix = parseInt(lastOrder.order_id.split('-')[2], 10);
-//         orderSuffix = (lastOrderSuffix + 1).toString().padStart(4, '0');
-//       }
-
-//       order.order_id = `#AB-${todayDate}-${orderSuffix}`;
-
-//       let totalAmount = 0;
-//       if (order.products && Array.isArray(order.products)) {
-//         for (const product of order.products) {
-//           const productDetails = await productSch.findById(product.id);
-//           if (!productDetails) {
-//             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order', null);
-//           }
-//           if (product.quantity > productDetails.avl_qty) {
-//             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
-//           }
-//           let subtotal = productDetails.price * product.quantity;
-//           subtotal -= productDetails.discount;
-//           const sGstAmount = subtotal * (productDetails.s_gst / 100);
-//           const cGstAmount = subtotal * (productDetails.c_gst / 100);
-//           const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
-//           totalAmount += totalPriceForProduct;
-//         }
-//       }
-//       order.total_amount = totalAmount;
-//       order.advisor_name = req.user.id;
-//       const newOrder = new orderSch(order);
-//       await newOrder.save();
-//       return otherHelper.sendResponse(res, httpStatus.OK, true, newOrder, null, 'Order created successfully', null);
-//     }
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
-
 orderController.AddOrUpdateOrderData = async (req, res, next) => {
   const session = await orderSch.startSession();
   try {
@@ -137,12 +65,14 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
         const today = new Date();
         if (order.future_order_date < today) {
           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date cannot be earlier than today', null);
-        }
-        order.added_at = null;
+        };
+        order.mark_as_done = false;
         order.status = null;
       } else if (order.order_type && order.order_type !== 'confirm') {
         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either "confirm" or "future"', null);
       } else {
+        console.log(order)
+        order.mark_as_done = null;
         order.future_order_date = null;
       }
 
@@ -192,6 +122,7 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
       }
       order.total_amount = totalAmount;
       order.advisor_name = req.user.id;
+      console.log('--------------',order)
       const newOrder = new orderSch(order);
       await newOrder.save({ session });
       await session.commitTransaction();
@@ -205,69 +136,6 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
     session.endSession();
   }
 };
-
-// orderController.UpdateOrder = async (req, res, next) => {
-//   try {
-//     const id = req.query.id;
-//     if (!id) {
-//       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order ID is required for update', null);
-//     }
-//     const existingOrder = await orderSch.findById(id);
-//     if (!existingOrder) {
-//       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Order not found', null);
-//     }
-
-//     const { _id, updated_at, ...updatedData } = req.body;
-
-//     if (updatedData.order_type === 'future') {
-//       if (!updatedData.future_order_date) {
-//         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date is required for future orders', null);
-//       }
-//       updatedData.future_order_date = new Date(updatedData.future_order_date);
-//       if (isNaN(updatedData.future_order_date.getTime())) {
-//         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid future order date', null);
-//       }
-//       const today = new Date();
-//       if (updatedData.future_order_date < today) {
-//         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Future order date cannot be earlier than today', null);
-//       }
-//       updatedData.added_at = null;
-//       updatedData.status = null;
-//     } else if (updatedData.order_type && updatedData.order_type !== 'confirm') {
-//       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either "confirm" or "future"', null);
-//     } else {
-//       updatedData.future_order_date = null;
-//       updatedData.added_at = Date.now();
-//       updatedData.status = 'confirm';
-//     }
-
-//     let totalAmount = 0;
-//     if (updatedData.products && Array.isArray(updatedData.products)) {
-//       for (const product of updatedData.products) {
-//         const productDetails = await productSch.findById(product.id);
-//         if (!productDetails) {
-//           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order', null);
-//         }
-//         if (product.quantity > productDetails.avl_qty) {
-//           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
-//         }
-//         let subtotal = productDetails.price * product.quantity;
-//         subtotal -= productDetails.discount;
-//         const sGstAmount = subtotal * (productDetails.s_gst / 100);
-//         const cGstAmount = subtotal * (productDetails.c_gst / 100);
-//         const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
-//         totalAmount += totalPriceForProduct;
-//       }
-//     }
-//     updatedData.total_amount = totalAmount;
-//     updatedData.updated_at = Date.now();
-//     const updatedOrder = await orderSch.findByIdAndUpdate(id, { $set: updatedData }, { new: true });
-//     return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, 'Order updated successfully', null);
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
 
 orderController.UpdateOrder = async (req, res, next) => {
   const session = await orderSch.startSession();
@@ -388,21 +256,60 @@ orderController.GetCallBacks = async (req, res, next) => {
     if (!loggedInUserId) {
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "Current User's ID not found", null);
     }
-
+    let orders;
     const today = new Date();
     let startDate = new Date(today);
     startDate.setHours(0, 0, 0, 0);
     let endDate = new Date(today);
     endDate.setHours(23, 59, 59, 999);
 
-    const orders = await orderSch
-      .find({
-        advisor_name: loggedInUserId,
-        order_type: 'future',
-        future_order_date: { $gte: startDate, $lt: endDate },
-      })
-      .populate([{ path: 'customer', model: 'customer', select: 'customer_name mobile_number' }]);
+    if (req.query.callback === 'true') {
+       orders = await orderSch
+        .find({
+          advisor_name: loggedInUserId,
+          order_type: 'future',
+          mark_as_done: false,
+          future_order_date: { $lt: endDate },
+        })
+        .populate([{ path: 'customer', model: 'customer', select: 'customer_name mobile_number' }]);
 
+      // const ordersWithCounts = await Promise.all(
+      //   orders.map(async (order) => {
+      //     if (order.customer && order.customer._id) {
+      //       const confirmOrders = await orderSch.find({
+      //         customer: order.customer._id,
+      //         status: 'confirm',
+      //       });
+      //       order.totalConfirmOrders = confirmOrders.length;
+
+      //       const returnOrders = await orderSch.find({
+      //         customer: order.customer._id,
+      //         status: 'return',
+      //       });
+
+      //       order.totalReturnOrder = returnOrders.length;
+      //       const complain = await complainSch.find({ created_by: order.customer._id });
+      //       order.totalComplain = complain.length;
+
+      //       order._doc.totalConfirmOrders = order.totalConfirmOrders;
+      //       order._doc.totalReturnOrder = order.totalReturnOrder;
+      //       order._doc.totalComplain = order.totalComplain;
+      //     }
+      //     return order;
+      //   }),
+      // );
+      // return otherHelper.sendResponse(res, httpStatus.OK, true, ordersWithCounts, null, 'Callbacks retrieved successfully!', null);
+    } else {
+       orders = await orderSch
+        .find({
+          advisor_name: loggedInUserId,
+          order_type: 'future',
+          future_order_date: { $gt: today },
+        })
+        .populate([{ path: 'customer', model: 'customer', select: 'customer_name mobile_number' }]);
+
+      // return otherHelper.sendResponse(res, httpStatus.OK, true, orders, null, 'Future Orders retrieved successfully!', null);
+    }
     const ordersWithCounts = await Promise.all(
       orders.map(async (order) => {
         if (order.customer && order.customer._id) {
@@ -416,10 +323,9 @@ orderController.GetCallBacks = async (req, res, next) => {
             customer: order.customer._id,
             status: 'return',
           });
-          console.log('returnOrders: ', returnOrders);
-          order.totalReturnOrder = returnOrders.length;
 
-          const complain = await complainSch.find({ created_by: order.customer._id });
+          order.totalReturnOrder = returnOrders.length;
+          const complain = await complainSch.find({ customer_id: order.customer._id });
           order.totalComplain = complain.length;
 
           order._doc.totalConfirmOrders = order.totalConfirmOrders;
@@ -429,9 +335,94 @@ orderController.GetCallBacks = async (req, res, next) => {
         return order;
       }),
     );
-    return otherHelper.sendResponse(res, httpStatus.OK, true, ordersWithCounts, null, 'Future Orders retrieved successfully!', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, ordersWithCounts, null, 'Callbacks retrieved successfully!', null);
+ 
   } catch (err) {
     next(err);
+  }
+};
+
+
+orderController.UpdateFutureOrder = async (req, res, next) => {
+  const session = await orderSch.startSession();
+
+  try {
+    session.startTransaction();
+    const { id } = req.query;
+    const { customer_id } = req.query;
+    console.log('req.query: ', req.query, !id, customer_id);
+
+    if (!id || !customer_id) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, ' Order ID, and Customer ID are required for update', null);
+    }
+
+    const existingOrder = await orderSch.findOne({ _id: id, advisor_name: req.user.id, customer: customer_id });
+    if (!existingOrder) {
+      await session.abortTransaction();
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Order not found', null);
+    }
+
+    const updatedData = req.body;
+
+    if (!updatedData.mark_as_done && updatedData.status === 'cancel') {
+      updatedData.mark_as_done = null;
+    } else if (updatedData.mark_as_done === false) {
+      if (updatedData.future_order_date && new Date(updatedData.future_order_date) <= new Date(existingOrder.future_order_date)) {
+        await session.abortTransaction();
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Extended Future order date must be greater than the existing future order date', null);
+      }
+    } else if (updatedData.mark_as_done === true) {
+      updatedData.status = 'confirm';
+      updatedData.future_order_date = null;
+      updatedData.added_at = Date.now();
+      updatedData.order_type = 'confirm';
+
+      if (updatedData.products && Array.isArray(updatedData.products)) {
+        let totalAmount = 0;
+
+        for (const product of updatedData.products) {
+          const productDetails = await productSch.findById(product.id).session(session);
+          if (!productDetails) {
+            await session.abortTransaction();
+            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order', null);
+          }
+          if (product.quantity > productDetails.avl_qty) {
+            await session.abortTransaction();
+            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
+          }
+          if (!updatedData.order_type || updatedData.order_type === 'confirm') {
+            productDetails.avl_qty -= product.quantity;
+            if (productDetails.avl_qty < 0) {
+              await session.abortTransaction();
+              return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Insufficient stock available', null);
+            }
+            await productDetails.save({ new: true });
+          }
+          let subtotal = productDetails.price * product.quantity;
+          subtotal -= productDetails.discount;
+          const sGstAmount = subtotal * (productDetails.s_gst / 100);
+          const cGstAmount = subtotal * (productDetails.c_gst / 100);
+          const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
+          totalAmount += totalPriceForProduct;
+        }
+        updatedData.total_amount = totalAmount;
+      }
+    }
+
+    if (Object.keys(updatedData).length > 0) {
+      updatedData.updated_at = Date.now();
+      const updatedOrder = await orderSch.findByIdAndUpdate(id, { $set: updatedData }, { new: true }).session(session);
+      await session.commitTransaction();
+      return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, 'Order updated successfully', null);
+    } else {
+      await session.abortTransaction();
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'No valid data to update', null);
+    }
+  } catch (err) {
+    await session.abortTransaction();
+    next(err);
+  } finally {
+    session.endSession();
   }
 };
 
