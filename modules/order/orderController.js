@@ -7,37 +7,53 @@ const orderController = {};
 
 orderController.getAllOrderList = async (req, res, next) => {
   try {
-    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    if (req.query.id) {
-      populate = [
-        { path: 'products.id', model: 'product', select: 'name  hsn_code discount batch_no price c_gst s_gst ' },
-        { path: 'customer', model: 'customer', select: 'customer_name  mobile_number alternate_number address district taluka village pincode' },
-        { path: 'advisor_name', model: 'users', select: 'name' },
-      ];
+    let { page = 1, size = 10, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+
+    populate = [
+      { path: 'products.id', model: 'product' },
+      { path: 'customer', model: 'customer', select: 'customer_name' },
+      { path: 'advisor_name', model: 'users', select: 'name' },
+    ];
+
+    if (req.query.id && req.query.customer_id && req.query.user_id) {
+      searchQuery = {
+        _id: req.query.id,
+        customer: req.query.customer_id,
+        advisor_name: req.query.user_id,
+      };
+    } else if (req.query.customer_id && req.query.user_id) {
+      searchQuery = {
+        customer: req.query.customer_id,
+        advisor_name: req.query.user_id,
+      };
+    } else if (req.query.id && req.query.customer_id) {
+      searchQuery = { _id: req.query.id, customer: req.query.customer_id };
+    } else if (req.query.id && req.query.user_id) {
+      searchQuery = { _id: req.query.id, advisor_name: req.query.user_id };
+    } else if (req.query.id) {
+      
       selectQuery = 'order_id products customer advisor_name total_amount status added_at updated_at';
       const orderId = req.query.id;
       searchQuery = { _id: orderId };
+    } else if (req.query.user_id) {
+      const userId = req.query.user_id;
+      searchQuery = { advisor_name: userId };
+    } else if (req.query.customer_id) {
+      const customerId = req.query.customer_id;
+      searchQuery = { customer: customerId };
     } else {
       selectQuery = 'order_id customer advisor_name total_amount status added_at';
       populate = [
         { path: 'customer', model: 'customer', select: 'customer_name' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ];
-      if (req.query.search && req.query.search !== 'null') {
-        const searchResults = await orderSch.find({
-          $or: [{ order_id: { $regex: req.query.search, $options: 'i' } }],
-        });
-        if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
-        return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
-      }
     }
-
+    if (req.query.search) {
+      const searchRegex = { $regex: req.query.search, $options: 'i' };
+      searchQuery = { ...searchQuery, $or: [{ order_id: searchRegex }, { status: searchRegex }] };
+    }
     const pulledData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    if (req.query.id) {
-      return otherHelper.sendResponse(res, httpStatus.OK, true, pulledData.data, null, 'Order data retrieved successfully', null);
-    } else {
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Order Data retrieved successfully', page, size, pulledData.totalData);
-    }
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Order Data retrieved successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
@@ -341,7 +357,6 @@ orderController.GetCallBacks = async (req, res, next) => {
     next(err);
   }
 };
-
 
 orderController.UpdateFutureOrder = async (req, res, next) => {
   const session = await orderSch.startSession();
