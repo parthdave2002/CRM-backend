@@ -8,86 +8,98 @@ const complainController = {};
 complainController.getAllcomplain = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    const userId = req.user.id; 
+    const userId = req.user.id;
+
+    const populateFields = [
+      { path: 'product_id', select: 'name.englishname name.gujaratiname' },
+      { path: 'customer_id', select: 'customer_name' },
+      { path: 'created_by', select: 'name' },
+      { path: 'Comment.name', select: 'name' },
+    ];
+
     if (req.query.id) {
-      const complaint = await complainSch.findById(req.query.id).lean();
+      const complaint = await complainSch.findById(req.query.id)
+        .populate(populateFields)
+        .lean();
+
       if (!complaint) {
         return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "Complain not found", null);
       }
 
-      complaint.is_resolved_by = complaint.resolved_by?.toString() === userId || complaint.created_by?.toString() === userId;
+      complaint.is_resolved_by = complaint.resolved_by?.toString() === userId || complaint.created_by?._id?.toString() === userId;
       return otherHelper.sendResponse(res, httpStatus.OK, true, complaint, null, "Complain data found", null);
     }
 
     if (req.query.search && req.query.search !== "null") {
       let searchResults = await complainSch.find({
-        $or: [{ adv_name: { $regex: req.query.search, $options: "i" } }],
-      }).lean(); 
+        $or: [{ order_id: { $regex: req.query.search, $options: "i" } }],
+      }).populate(populateFields).lean();
 
       if (searchResults.length === 0) {
         return otherHelper.sendResponse(res, httpStatus.OK, true, [], null, "Data not found", null);
       }
       searchResults = searchResults.map(complaint => ({
         ...complaint,
-        is_resolved_by: complaint.resolved_by?.toString() === userId || complaint.created_by?.toString() === userId,
+        is_resolved_by: complaint.resolved_by?.toString() === userId || complaint.created_by?._id?.toString() === userId,
       }));
+
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, "Complain data found", page, size, searchResults.length);
     }
+    let pulledData = await complainSch.find(searchQuery) .sort(sortQuery) .skip(page * size - size) .limit(size) .select(selectQuery) .populate(populateFields) .lean();
+    const totalData = await complainSch.countDocuments(searchQuery);
 
-    let pulledData = await otherHelper.getQuerySendResponse(complainSch,page,size,sortQuery,searchQuery,selectQuery,next,populate );
-    pulledData.data = pulledData.data.map(complaint => ({
-      ...complaint.toObject(),
-      is_resolved_by: complaint.resolved_by?.toString() === userId || complaint.created_by?.toString() === userId,
+    pulledData = pulledData.map(complaint => ({
+      ...complaint,
+      is_resolved_by: complaint.resolved_by?.toString() === userId || complaint.created_by?._id?.toString() === userId,
     }));
-
-    return otherHelper.paginationSendResponse(res,httpStatus.OK,true,pulledData.data,"Complain data retrieved successfully",page,size,pulledData.totalData );
+    return otherHelper.paginationSendResponse( res, httpStatus.OK, true, pulledData, "Complain data retrieved successfully", page, size, totalData);
   } catch (err) {
     next(err);
   }
 };
+
+
 
 complainController.addcomplain = async (req, res, next) => {
   try {
     const complain = req.body;
     const now = new Date();
     const formattedDate = [
-      String(now.getDate()).padStart(2, '0'),
+      String(now.getFullYear()).slice(-2),
       String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getFullYear()).slice(-2)
+      String(now.getDate()).padStart(2, '0')
     ].join('');
-    
-    const lastComplain = await complainSch.findOne({ complain_id: new RegExp(`#ABC-${formattedDate}-`) })
-      .sort({ complain_id: -1 })
-      .lean();
+
+    const productIds = Array.isArray(complain.product_id) ? complain.product_id : [complain.product_id];
+    const createdComplaints = [];
+    const lastComplain = await complainSch.findOne({
+      complain_id: new RegExp(`#ABC-${formattedDate}-`)
+    }).sort({ complain_id: -1 }).lean();
 
     let dailyComplainCount = lastComplain ? parseInt(lastComplain.complain_id.split('-')[2], 10) + 1 : 1;
-    complain.complain_id = `#ABC-${formattedDate}-${String(dailyComplainCount).padStart(4, '0')}`;
 
-    if (!complain.created_by && req.user) {
-      complain.created_by = req.user.id;
+    for (let i = 0; i < productIds.length; i++) {
+      const singleComplain = { ...complain };
+      singleComplain.product_id = [productIds[i]];
+      singleComplain.complain_id = `#ABC-${formattedDate}-${String(dailyComplainCount++).padStart(4, '0')}`;
+      if (!singleComplain.created_by && req.user) {
+        singleComplain.created_by = req.user.id;
+      }
+      if (singleComplain.Comment && singleComplain.Comment.length > 0) {
+        singleComplain.Comment = singleComplain.Comment.map(comment => ({
+          name: req.user.id,
+          comment: comment.comment,
+          comment_date: new Date()
+        }));
+      }
+      const newComplainDoc = new complainSch(singleComplain);
+      const savedComplain = await newComplainDoc.save();
+      const populatedComplain = await complainSch.findById(savedComplain._id).populate("created_by", "name");
+      createdComplaints.push(populatedComplain);
     }
-
-    if (complain.Comment && complain.Comment.length > 0) {
-      complain.Comment = complain.Comment.map(comment => ({
-        name: req.user.id, 
-        comment: comment.comment,
-        comment_date: new Date() 
-      }));
-    }
-
-    let savedComplain;
-    if (complain._id) {
-      savedComplain = await complainSch
-        .findByIdAndUpdate(complain._id, { $set: complain }, { new: true })
-        .populate("created_by", "name ");
-    } else {
-      const newComplain = new complainSch(complain);
-      savedComplain = await newComplain.save();
-      savedComplain = await complainSch.findById(savedComplain._id).populate("created_by", "name ");
-    }
-
-    return otherHelper.sendResponse(res, httpStatus.OK, true, savedComplain, null, "Complain created successfully", null);
+    return otherHelper.sendResponse(res,httpStatus.OK,true,createdComplaints,null,"Complaints created successfully",null);
   } catch (err) {
+    console.error("Error while creating complaints:", err);
     next(err);
   }
 };
@@ -117,6 +129,38 @@ complainController.deletecomplain = async (req, res, next) => {
     const deleted = await complainSch.findByIdAndDelete(id);
     return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Complain deleted successfully', null);
   } catch (err) {
+    next(err);
+  }
+};
+
+complainController.getbyid = async (req, res, next) => {
+  try {
+    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    const userId = req.user.user_id;
+    const { customer_id } = req.query;
+
+    const query = { resolution: 'open' };
+    if (userId) query.created_by = userId;
+    if (customer_id) query.customer_id = customer_id;
+
+    if (searchQuery && typeof searchQuery === 'string' && searchQuery.trim() !== '') {
+      query.$or = [
+        { title: { $regex: searchQuery, $options: 'i' } },
+        { complain_id: { $regex: searchQuery, $options: 'i' } },
+      ];
+    }
+    const populateFields = [
+      { path: 'product_id', select: 'name.englishname name.gujaratiname' },
+      { path: 'customer_id', select: 'customer_name' },
+      { path: 'created_by', select: 'name' },
+      { path: 'Comment.name', select: 'name' },
+    ];
+
+    const pulledData = await complainSch.find(query).skip((page - 1) * size).limit(size).select(selectQuery).populate(populateFields).sort(sortQuery).lean();
+    const totalData = await complainSch.countDocuments(query);
+    return otherHelper.paginationSendResponse( res, httpStatus.OK, true, pulledData, "Complain data retrieved successfully", page, size, totalData);
+  } catch (err) {
+    console.error("Error in getting complaints: ", err);
     next(err);
   }
 };

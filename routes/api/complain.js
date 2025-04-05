@@ -7,5 +7,7 @@ router.get('/get-complain',authentication,  complainController.getAllcomplain);
 router.post('/add-complain',authentication,  complainController.addcomplain);
 router.put('/update-complain',authentication,  complainController.updatecomplain);
 router.delete('/remove-complain',authentication,   complainController.deletecomplain);
+router.get('/getbyid',authentication,   complainController.getbyid);
+
 
 module.exports = router
