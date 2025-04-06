@@ -106,15 +106,46 @@ complainController.addcomplain = async (req, res, next) => {
 
 complainController.updatecomplain = async (req, res, next) => {
   try {
-    const complain = await complainSch.findByIdAndUpdate(req.body.id, req.body, { new: true });
-    if (!complain) {
-      return otherHelper.sendResponse( res,httpStatus.NOT_FOUND,false,null,null,"Complain not found",null);
+    const { id, comment, ...restData } = req.body;
+    const userId = req.user?.id;
+
+    if (!id) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, "Complain ID is required", null);
     }
-    return otherHelper.sendResponse( res,httpStatus.OK,true,complain,null,"Complain updated successfully",null);
+
+
+    let updateQuery = {};
+
+    if (comment) {
+      updateQuery.$push = {
+        Comment: {
+          name: userId,
+          comment,
+          comment_date: new Date(),
+        }
+      };
+    }
+
+    if (Object.keys(restData).length > 0) {
+      updateQuery.$set = restData;
+    }
+
+    const updatedComplain = await complainSch.findByIdAndUpdate(
+      id,
+      updateQuery,
+      { new: true }
+    );
+
+    if (!updatedComplain) {
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "Complain not found", null);
+    }
+
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedComplain, null, "Complain updated successfully", null);
   } catch (err) {
     next(err);
   }
 };
+
 
 complainController.deletecomplain = async (req, res, next) => {
   try {
@@ -136,12 +167,18 @@ complainController.deletecomplain = async (req, res, next) => {
 complainController.getbyid = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    const userId = req.user.user_id;
+    const userId = req.query.user_id;
     const { customer_id } = req.query;
 
-    const query = { resolution: 'open' };
-    if (userId) query.created_by = userId;
-    if (customer_id) query.customer_id = customer_id;
+    const query = {};
+    if (customer_id) {
+      query.customer_id = customer_id;
+    }
+
+    if (userId) {
+      query.created_by = userId;
+      query.resolution = 'open'
+    }
 
     if (searchQuery && typeof searchQuery === 'string' && searchQuery.trim() !== '') {
       query.$or = [
@@ -149,6 +186,7 @@ complainController.getbyid = async (req, res, next) => {
         { complain_id: { $regex: searchQuery, $options: 'i' } },
       ];
     }
+
     const populateFields = [
       { path: 'product_id', select: 'name.englishname name.gujaratiname' },
       { path: 'customer_id', select: 'customer_name' },
@@ -156,9 +194,26 @@ complainController.getbyid = async (req, res, next) => {
       { path: 'Comment.name', select: 'name' },
     ];
 
-    const pulledData = await complainSch.find(query).skip((page - 1) * size).limit(size).select(selectQuery).populate(populateFields).sort(sortQuery).lean();
+    let pulledData = await complainSch
+      .find(query)
+      .skip((page - 1) * size)
+      .limit(size)
+      .select(selectQuery)
+      .populate(populateFields)
+      .sort(sortQuery)
+      .lean();
+
+    pulledData = pulledData.map(complaint => {
+      const resolvedById = complaint.resolved_by?.toString();
+      const createdById = complaint.created_by?._id?.toString() || complaint.created_by?.toString();
+      return {
+        ...complaint,
+        is_resolved_by: resolvedById === userId || createdById === userId,
+      };
+    });
+
     const totalData = await complainSch.countDocuments(query);
-    return otherHelper.paginationSendResponse( res, httpStatus.OK, true, pulledData, "Complain data retrieved successfully", page, size, totalData);
+    return otherHelper.paginationSendResponse(res,httpStatus.OK,true,pulledData,"Complain data retrieved successfully",page,size,totalData );
   } catch (err) {
     console.error("Error in getting complaints: ", err);
     next(err);

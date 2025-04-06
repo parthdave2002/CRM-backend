@@ -158,20 +158,21 @@ orderController.UpdateOrder = async (req, res, next) => {
 
   try {
     session.startTransaction();
-    const id = req.query.id;
+    const id = req.body.order_id;
     if (!id) {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order ID is required for update', null);
     }
-    const existingOrder = await orderSch.findById(id);
+
+    const existingOrder = await orderSch.findOne({ order_id: id });
     if (!existingOrder) {
       await session.abortTransaction();
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Order not found', null);
     }
 
     const { _id, updated_at, ...updatedData } = req.body;
-    if (updatedData.order_type && updatedData.order_type !== 'confirm') {
+    if (!updatedData.order_type && (updatedData.order_type !== 'confirm' || updatedData.order_type !== 'cancel' || updatedData.order_type !== 'return')) {
       await session.abortTransaction();
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either "confirm" or "future"', null);
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either confirm, cancel or future ', null);
     }
     updatedData.future_order_date = null;
     if (existingOrder.order_type !== 'confirm') updatedData.added_at = Date.now();
@@ -186,6 +187,16 @@ orderController.UpdateOrder = async (req, res, next) => {
       if (addedAtDate < sevenDaysAgo) {
         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order can not Update to Return due to return policy of 7 days', null);
       }
+    }
+
+    if (updatedData.status === 'future' && updatedData.future_order_date) {
+      if (updatedData.future_order_date && new Date(updatedData.future_order_date) <= new Date(existingOrder.future_order_date)) {
+        await session.abortTransaction();
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Extended Future order date must be greater than the existing future order date', null);
+      }
+      updatedData.mark_as_done = false;
+      updatedData.future_order_date = new Date(updatedData.future_order_date);
+      console.log("updatedData.future_order_date", updatedData.future_order_date)
     }
 
     let totalAmount = 0;
@@ -238,7 +249,8 @@ orderController.UpdateOrder = async (req, res, next) => {
 
     updatedData.total_amount = totalAmount;
     updatedData.updated_at = Date.now();
-    const updatedOrder = await orderSch.findByIdAndUpdate(id, { $set: updatedData }, { new: true }).session(session);
+    // const updatedOrder = await orderSch.findByIdAndUpdate(id, { $set: updatedData }, { new: true }).session(session);
+    const updatedOrder = await orderSch.findByIdAndUpdate(existingOrder._id, { $set: updatedData }, { new: true }).session(session);
     await session.commitTransaction();
     return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, 'Order updated successfully', null);
   } catch (err) {
@@ -365,8 +377,7 @@ orderController.UpdateFutureOrder = async (req, res, next) => {
     session.startTransaction();
     const { id } = req.query;
     const { customer_id } = req.query;
-    console.log('req.query: ', req.query, !id, customer_id);
-
+ 
     if (!id || !customer_id) {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, ' Order ID, and Customer ID are required for update', null);
     }
