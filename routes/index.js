@@ -52,4 +52,7 @@ router.use('/complain', complaindata);
 const salesExcutivedata = require('./api/salesExecutive');
 router.use('/sales-executive', salesExcutivedata);
 
+const Statedata = require('./api/location');
+router.use('/location', Statedata);
+
 module.exports = router;

@@ -38,13 +38,9 @@ app.use(
 // protect against HTTP Parameter Pollution attacks
 app.use(hpp());
 
-
-
 app.use(cors({
   origin : "*"
 }));
-
-
 
 app.use(
   cookieSession({
