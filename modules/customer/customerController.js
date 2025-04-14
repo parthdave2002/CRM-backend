@@ -1,6 +1,7 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const customerSch = require('../../schema/customerSchema');
+const stateSch  = require('../../schema/locationSchema');
 
 const customerController = {};
 
@@ -24,17 +25,52 @@ customerController.getAllCustomerList = async (req, res, next) => {
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
     }
 
-    populate = [{ path: 'crops', model: 'crop', select: 'name' },{ path: 'created_by', model: 'users', select: 'name' }];
+    populate = [{ path: 'crops', model: 'crop', select: 'name_eng name_guj'},{ path: 'created_by', model: 'users', select: 'name' }];
     selectQuery = 'customer_name mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at is_deleted created_by';
     if (req.query.id) {
       searchQuery = { _id: req.query.id };
     }
     const pulledData = await otherHelper.getQuerySendResponse(customerSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Customer Data fetched successfully', page, size, pulledData.totalData);
+    const stateData = await stateSch.find({}); 
+    const enrichedData = pulledData.data.map(cust => {
+      const districtName = findNameFromState(stateData, cust.district, 'district');
+      const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
+      const villageName = findNameFromState(stateData, cust.village, 'village');
+      return {
+        ...cust.toObject(),
+        district_name: districtName,
+        taluka_name: talukaName,
+        village_name: villageName
+      };
+    });
+
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true,enrichedData, 'Customer Data fetched successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
 };
+
+function findNameFromState(states, id, type) {
+  if (!id) return null;
+  for (const state of states) {
+    for (const district of state.districts) {
+      if (type === 'district' && district._id.equals(id)) {
+        return district.name;
+      }
+      for (const taluka of district.talukas) {
+        if (type === 'taluka' && taluka._id.equals(id)) {
+          return taluka.name;
+        }
+        for (const village of taluka.villages) {
+          if (type === 'village' && village._id.equals(id)) {
+            return village.name;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
 
 customerController.AddCustomerData = async (req, res, next) => {
   try {
@@ -47,7 +83,8 @@ customerController.AddCustomerData = async (req, res, next) => {
       if (existingCustomer) {
         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer with this mobile number already exists', null);
       }
-
+      customerData.created_by = req.user.id;
+      customerData.added_at = new Date();
       const newCustomer = new customerSch(customerData);
       await newCustomer.save();
       return otherHelper.sendResponse(res, httpStatus.OK, true, newCustomer, null, 'Customer Created successfully', null);
