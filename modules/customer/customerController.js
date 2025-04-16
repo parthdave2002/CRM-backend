@@ -156,12 +156,59 @@ customerController.changeStatus = async (req, res, next) => {
 
 customerController.matchNumber = async (req, res, next) => {
   try {
-    const number = req.query.number || req.body.number;
-    if (!number) {
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer Number is required', null);
+    const number = (req.query.number || req.body.number || '').toString().replace(/[^0-9]/g, '');
+    const order_id = req.query.order_id || req.body.order_id;
+    const complain_id = req.query.complain_id || req.body.complain_id;
+
+    populate = [
+      { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
+      { path: 'created_by', model: 'users', select: 'name' },
+      { path: 'state', model: 'State', select: 'name ' },
+      { path: 'ref_name', model: 'users', select: 'name', strictPopulate: false },
+    ];
+    if (!number && !order_id && !complain_id) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'At least one identifier (number, order_id, or complain_id) is required', null);
     }
-    const customer = await customerSch.findOne({ mobile_number: number });
-    return otherHelper.sendResponse(res,httpStatus.OK,  customer ? true : false,customer || null,null , customer ? 'Customer found' : 'Customer Number Not matched',null);
+
+    let customer = null;
+
+    if (number) {
+      customer = await customerSch.findOne({ mobile_number: number }).populate(populate);
+    } else if (order_id) {
+      const order = await orderSch.findOne({ order_id: order_id }).select('customer');
+      if (order && order.customer) {
+        customer = await customerSch.findById(order.customer).populate(populate);
+      }
+    } else if (complain_id) {
+      const complain = await complainSch.findOne({ complain_id: complain_id }).select('customer_id');
+      if (complain && complain.customer_id) {
+        customer = await customerSch.findById(complain.customer_id).populate(populate);
+      }
+    }
+    if (!customer) {
+      return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'Customer not matched', null);
+    }
+    let enrichedCustomer = customer.toObject();
+    try {
+      const stateData = customer.state?.districts && Array.isArray(customer.state.districts) ? customer.state : await stateSch.findById(customer.state).lean();
+
+      if (stateData) {
+        enrichedCustomer.district_name = findNameFromState(stateData, customer.district, 'district');
+        enrichedCustomer.taluka_name = findNameFromState(stateData, customer.taluka, 'taluka');
+        enrichedCustomer.village_name = findNameFromState(stateData, customer.village, 'village');
+      } else {
+        enrichedCustomer.district_name = null;
+        enrichedCustomer.taluka_name = null;
+        enrichedCustomer.village_name = null;
+      }
+    } catch (err) {
+      console.error("Error", err.message);
+      enrichedCustomer.district_name = null;
+      enrichedCustomer.taluka_name = null;
+      enrichedCustomer.village_name = null;
+    }
+
+    return otherHelper.sendResponse(res, httpStatus.OK, true, enrichedCustomer, null, 'Customer found', null);
   } catch (err) {
     next(err);
   }
