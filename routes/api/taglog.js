@@ -9,4 +9,9 @@ router.post('/add-taglog',authentication,authorization("Taglog"), TaglogControll
 router.delete('/remove-taglog',authentication,authorization("Taglog"), TaglogController.DeleteTaglog);
 router.delete('/status-taglog',authentication,authorization("Taglog"), TaglogController.changestatus);
 
- module.exports = router
+router.get('/get-subtaglog', authentication, authorization("Taglog"), TaglogController.getAllSubtaglog);
+router.post('/add-subtaglog', authentication, authorization("Taglog"), TaglogController.AddSubtaglog);
+router.delete('/remove-subtaglog', authentication, authorization("Taglog"), TaglogController.DeleteSubtaglog);
+router.delete('/update-subtaglog', authentication, authorization("Taglog"), TaglogController.updateSubtaglog);
+
+module.exports = router

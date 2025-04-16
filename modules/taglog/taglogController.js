@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const taglogSch = require('../../schema/taglogSchema');
-
+// const taglogCustomerSch = require('../../schema/taglogCustomerSchema');
 const taglogController = {};
 
 taglogController.getAllTaglogList = async (req, res, next) => {
@@ -69,6 +69,94 @@ taglogController.DeleteTaglog = async (req, res, next) => {
 
     const deleted = await taglogSch.findByIdAndUpdate(id, { is_deleted : true, is_active: false, updated_at: new Date() }, { new: true });
     return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Taglog Soft delete successfully', null);
+  } catch (err) {
+    next(err);
+  }
+};
+
+taglogController.getAllSubtaglog = async (req, res, next) => {
+  try {
+
+    const id = req.query.id;
+    if(!id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Please enter taglog id', null);
+
+    const subtags = await taglogSch.findById(id).select("subtaglog");
+    if(subtags){
+      return otherHelper.sendResponse(res, httpStatus.OK, true, subtags, null, 'Subtaglog data found', null);
+    }else{
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Enter taglog id not found', null);
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+taglogController.AddSubtaglog = async (req, res, next) => {
+  try {
+    const { taglog_id, name, is_active } = req.body;
+    if(!taglog_id) return  otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'taglog id is required', null);
+
+    const validtaglog = await taglogSch.findById(taglog_id);
+    if(validtaglog){
+      const newSubtaglog = {
+        name: name,
+        is_active: is_active, 
+        created_date: new Date(),
+        is_deleted: false
+      };
+
+      const updatedtaglog = await taglogSch.findByIdAndUpdate(taglog_id, { $push: { subtaglog: newSubtaglog }, $set: { updated_at: new Date() } }, { new: true });
+      return otherHelper.sendResponse(res, httpStatus.OK, true, updatedtaglog, null, 'Subtaglog added successfully', null);
+    }else{
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Please enter valid talgog id', null);
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+taglogController.updateSubtaglog = async (req, res, next) => {
+  try {
+    const { id, taglog_id } = req.body;
+
+    if (!taglog_id)   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Taglog ID is required', null);
+    if (!id)   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Subtaglog ID is required', null);
+
+    const existtaglog = await taglogSch.findById(taglog_id);
+    if (!existtaglog)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Taglog not found', null);
+    
+    const subtag = existtaglog.subtaglog.id(id);
+    if (!subtag)   return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Subtaglog not found', null);
+
+    subtag.is_active = !subtag.is_active;
+    existtaglog.updated_at = new Date();
+    await existtaglog.save();
+
+    return otherHelper.sendResponse(res, httpStatus.OK, true, subtag, null, 'Subtaglog status updated successfully', null);
+  } catch (err) {
+    next(err);
+  }
+};
+
+taglogController.DeleteSubtaglog = async (req, res, next) => {
+  try {
+    const { id, taglog_id } = req.body;
+
+    if (!taglog_id)   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Taglog ID is required', null);
+    if (!id)   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Subtaglog ID is required', null);
+
+    const existtaglog = await taglogSch.findById(taglog_id);
+    if (!existtaglog)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Taglog not found', null);
+    
+    const subtag = existtaglog.subtaglog.id(id);
+    if (!subtag)   return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Subtaglog not found', null);
+
+    subtag.is_active =false;
+    subtag.is_deleted = true,
+    existtaglog.updated_at = new Date();
+    await existtaglog.save();
+
+    return otherHelper.sendResponse(res, httpStatus.OK, true, subtag, null, 'Subtaglog  deleted successfully', null);
   } catch (err) {
     next(err);
   }
