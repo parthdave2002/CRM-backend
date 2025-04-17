@@ -1,7 +1,9 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const taglogSch = require('../../schema/taglogSchema');
-// const taglogCustomerSch = require('../../schema/taglogCustomerSchema');
+const mongoose = require('mongoose');
+const customerSch = require('../../schema/customerSchema');
+const taglogCustomerSch = require('../../schema/taglogCustomer');
 const taglogController = {};
 
 taglogController.getAllTaglogList = async (req, res, next) => {
@@ -76,13 +78,23 @@ taglogController.DeleteTaglog = async (req, res, next) => {
 
 taglogController.getAllSubtaglog = async (req, res, next) => {
   try {
-
+    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    searchQuery = { ...searchQuery, is_deleted: false };
     const id = req.query.id;
     if(!id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Please enter taglog id', null);
 
+    if (req.query.search && req.query.search !== "null"){
+      const searchResults = await taglogSch.find({
+        $or: [{ taglog_name: { $regex: req.query.search, $options: "i" } }], 
+      });
+      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search data found", page, size, searchResults.length);
+    }
+
     const subtags = await taglogSch.findById(id).select("subtaglog");
     if(subtags){
-      return otherHelper.sendResponse(res, httpStatus.OK, true, subtags, null, 'Subtaglog data found', null);
+      const activeSubtags = subtags.subtaglog.filter(subtag => subtag.is_deleted == false);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, activeSubtags, null, 'Subtaglog data found', null);
     }else{
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Enter taglog id not found', null);
     }
@@ -117,7 +129,7 @@ taglogController.AddSubtaglog = async (req, res, next) => {
 
 taglogController.updateSubtaglog = async (req, res, next) => {
   try {
-    const { id, taglog_id } = req.body;
+    const { id, taglog_id } = req.query || req.params;
 
     if (!taglog_id)   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Taglog ID is required', null);
     if (!id)   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Subtaglog ID is required', null);
@@ -140,7 +152,7 @@ taglogController.updateSubtaglog = async (req, res, next) => {
 
 taglogController.DeleteSubtaglog = async (req, res, next) => {
   try {
-    const { id, taglog_id } = req.body;
+    const { id, taglog_id } = req.query || req.params;
 
     if (!taglog_id)   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Taglog ID is required', null);
     if (!id)   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Subtaglog ID is required', null);
@@ -157,6 +169,47 @@ taglogController.DeleteSubtaglog = async (req, res, next) => {
     await existtaglog.save();
 
     return otherHelper.sendResponse(res, httpStatus.OK, true, subtag, null, 'Subtaglog  deleted successfully', null);
+  } catch (err) {
+    next(err);
+  }
+};
+
+taglogController.AddTaglogCustomer = async (req, res, next) => {
+  try {
+    const {customer_id, taglog_id, subtaglog_id} = req.body;
+
+    if(!customer_id || !taglog_id || !subtaglog_id){
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer ID, Taglog ID and Subtaglog ID are required', null);
+    }
+    if(customer_id && !mongoose.Types.ObjectId.isValid(customer_id)){
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Customer ID', null);
+    }
+    if(taglog_id && !mongoose.Types.ObjectId.isValid(taglog_id)){
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Taglog ID', null);
+    }
+    if(subtaglog_id && !mongoose.Types.ObjectId.isValid(subtaglog_id)){
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Subtaglog ID', null);
+    }
+    const newEntry = new taglogCustomerSch(req.body);
+    await newEntry.save();
+    return otherHelper.sendResponse(res, httpStatus.OK, true, newEntry, null, 'Customer Taglog added successfully', null);
+  } catch (err) {
+    next(err);
+  }
+};
+
+taglogController.getAllTaglogCustomers = async (req, res, next) => {
+  try {
+    const customer_id = req.query.customer_id;
+    if(customer_id && !mongoose.Types.ObjectId.isValid(customer_id)){
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Customer ID', null);
+    }
+    const customerExists = await customerSch.findById(customer_id);
+    if(!customerExists)
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
+    if(!customer_id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer ID is required', null);
+    const customers = await taglogCustomerSch.find({ customer_id }).select('customer_id taglog_id subtaglog_id created_by');    
+    return otherHelper.sendResponse(res, httpStatus.OK, true, customers, null, 'Customer Taglogs fetched successfully', null);
   } catch (err) {
     next(err);
   }

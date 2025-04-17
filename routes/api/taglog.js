@@ -14,4 +14,7 @@ router.post('/add-subtaglog', authentication, authorization("Taglog"), TaglogCon
 router.delete('/remove-subtaglog', authentication, authorization("Taglog"), TaglogController.DeleteSubtaglog);
 router.delete('/update-subtaglog', authentication, authorization("Taglog"), TaglogController.updateSubtaglog);
 
+router.post('/add-customer-taglog', authentication, authorization("Taglog"), TaglogController.AddTaglogCustomer);
+router.get('/get-customer-taglogs', authentication, authorization("Taglog"), TaglogController.getAllTaglogCustomers);
+
 module.exports = router
