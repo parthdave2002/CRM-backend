@@ -21,7 +21,7 @@ companyController.GetCompanylist = async (req, res, next) => {
     }
     if (req.query.search && req.query.search !== 'null') {
       const searchResults = await companySch.find({
-        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
+        $or: [{ name_eng: { $regex: req.query.search, $options: 'i' } }],
       });
       if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);

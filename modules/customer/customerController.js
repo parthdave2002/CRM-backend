@@ -2,6 +2,8 @@ const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const customerSch = require('../../schema/customerSchema');
 const stateSch  = require('../../schema/locationSchema');
+const orderSch = require("../../schema/orderSchema");
+const complainSch = require("../../schema/complainSchema")
 
 const customerController = {};
 
@@ -166,7 +168,7 @@ customerController.matchNumber = async (req, res, next) => {
     populate = [
       { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
       { path: 'created_by', model: 'users', select: 'name' },
-      { path: 'state', model: 'State', select: 'name ' },
+      { path: 'state', model: 'State', select: 'name district' },
       { path: 'ref_name', model: 'users', select: 'name', strictPopulate: false },
     ];
     if (!number && !order_id && !complain_id) {
@@ -188,9 +190,10 @@ customerController.matchNumber = async (req, res, next) => {
         customer = await customerSch.findById(complain.customer_id).populate(populate);
       }
     }
-    if (!customer) {
-      return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'Customer not matched', null);
-    }
+    if (!customer)   return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'Customer not matched', null);
+    
+   console.log("customer >>>>>>>>", customer)
+
     let enrichedCustomer = customer.toObject();
     try {
       const stateData = customer.state?.districts && Array.isArray(customer.state.districts) ? customer.state : await stateSch.findById(customer.state).lean();

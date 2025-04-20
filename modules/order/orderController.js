@@ -3,7 +3,63 @@ const otherHelper = require('../../helper/others.helper');
 const orderSch = require('../../schema/orderSchema');
 const productSch = require('../../schema/productSchema');
 const complainSch = require('../../schema/complainSchema');
+const stateSch = require('../../schema/locationSchema')
 const orderController = {};
+
+// orderController.getAllOrderList = async (req, res, next) => {
+//   try {
+//     let { page = 1, size = 10, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+
+//     populate = [
+//       { path: 'products.id', model: 'product' },
+//       { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village taluka district' },
+//       { path: 'advisor_name', model: 'users', select: 'name' },
+//     ];
+
+//     if (req.query.id && req.query.customer_id && req.query.user_id) {
+//       searchQuery = {
+//         _id: req.query.id,
+//         customer: req.query.customer_id,
+//         advisor_name: req.query.user_id,
+//       };
+//     } else if (req.query.customer_id && req.query.user_id) {
+//       searchQuery = {
+//         customer: req.query.customer_id,
+//         advisor_name: req.query.user_id,
+//       };
+//     } else if (req.query.id && req.query.customer_id) {
+//       searchQuery = { _id: req.query.id, customer: req.query.customer_id };
+//     } else if (req.query.id && req.query.user_id) {
+//       searchQuery = { _id: req.query.id, advisor_name: req.query.user_id };
+//     } else if (req.query.id) {
+      
+//       selectQuery = 'order_id products customer advisor_name total_amount status added_at updated_at';
+//       const orderId = req.query.id;
+//       searchQuery = { _id: orderId };
+//     } else if (req.query.user_id) {
+//       const userId = req.query.user_id;
+//       searchQuery = { advisor_name: userId };
+//     } else if (req.query.customer_id) {
+//       const customerId = req.query.customer_id;
+//       searchQuery = { customer: customerId };
+//     } else {
+//       selectQuery = 'order_id customer advisor_name total_amount status added_at';
+//       populate = [
+//         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village taluka district' },
+//         { path: 'advisor_name', model: 'users', select: 'name' },
+//       ];
+//     }
+//     if (req.query.search) {
+//       const searchRegex = { $regex: req.query.search, $options: 'i' };
+//       searchQuery = { ...searchQuery, $or: [{ order_id: searchRegex }, { status: searchRegex }] };
+//     }
+//     const pulledData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
+//     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Order Data retrieved successfully', page, size, pulledData.totalData);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
 
 orderController.getAllOrderList = async (req, res, next) => {
   try {
@@ -11,7 +67,18 @@ orderController.getAllOrderList = async (req, res, next) => {
 
     populate = [
       { path: 'products.id', model: 'product' },
-      { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village taluka district' },
+      {
+        path: 'customer',
+        model: 'customer',
+        select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village taluka district',
+        populate: [
+          {
+            path: 'state',
+            model: 'State',
+            select: 'name',
+          },
+        ],
+      },
       { path: 'advisor_name', model: 'users', select: 'name' },
     ];
 
@@ -31,8 +98,7 @@ orderController.getAllOrderList = async (req, res, next) => {
     } else if (req.query.id && req.query.user_id) {
       searchQuery = { _id: req.query.id, advisor_name: req.query.user_id };
     } else if (req.query.id) {
-      
-      selectQuery = 'order_id products customer advisor_name total_amount status added_at updated_at';
+      selectQuery = 'order_id order_type products customer advisor_name total_amount status added_at updated_at';
       const orderId = req.query.id;
       searchQuery = { _id: orderId };
     } else if (req.query.user_id) {
@@ -42,22 +108,97 @@ orderController.getAllOrderList = async (req, res, next) => {
       const customerId = req.query.customer_id;
       searchQuery = { customer: customerId };
     } else {
-      selectQuery = 'order_id customer advisor_name total_amount status added_at';
+      selectQuery = 'order_id order_type  customer advisor_name total_amount status added_at';
       populate = [
-        { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village taluka district' },
+        { path: 'customer', model: 'customer', select: 'firstname middlename lastname' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ];
     }
+
     if (req.query.search) {
       const searchRegex = { $regex: req.query.search, $options: 'i' };
       searchQuery = { ...searchQuery, $or: [{ order_id: searchRegex }, { status: searchRegex }] };
     }
+
     const pulledData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, 'Order Data retrieved successfully', page, size, pulledData.totalData);
+
+    let finalData = pulledData.data;
+
+    if (req.query.id) {
+      finalData = await Promise.all(
+        pulledData.data.map(async (order) => {
+          const cust = order.customer;
+          if (!cust && !cust.state) {
+            return {
+              ...order.toObject(),
+              customer: {
+                ...cust?.toObject?.(),
+                district_name: '',
+                taluka_name: '',
+                village_name: '',
+              },
+            };
+          }
+
+          try {
+            const stateData = cust.state?.districts && cust.state?.districts.length ? cust.state : await stateSch.findOne({ _id: order.customer.toObject().state._id }).lean();
+            console.log(stateData)
+            const districtName = findNameFromState(stateData, cust.district, 'district') || '';
+            const talukaName = findNameFromState(stateData, cust.taluka, 'taluka') || '';
+            const villageName = findNameFromState(stateData, cust.village, 'village') || '';
+
+            return {
+              ...order.toObject(),
+              customer: {
+                ...cust?.toObject?.(),
+                district_name: districtName,
+                taluka_name: talukaName,
+                village_name: villageName,
+              },
+            };
+          } catch (err) {
+            console.error(`Error enriching customer ${cust._id}:`, err.message);
+            return {
+              ...order.toObject(),
+              customer: {
+                ...cust?.toObject?.(),
+                district_name: '',
+                taluka_name: '',
+                village_name: '',
+              },
+            };
+          }
+        }),
+      );
+    }
+
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, finalData, 'Order Data retrieved successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
 };
+
+function findNameFromState(state, id, type) {
+  if (!id || !state || !state.districts) return null;
+
+  for (const district of state.districts) {
+    if (type === 'district' && district._id.equals(id)) {
+      return district.name;
+    }
+    if (!district.talukas) continue;
+    for (const taluka of district.talukas) {
+      if (type === 'taluka' && taluka._id.equals(id)) {
+        return taluka.name;
+      }
+      if (!taluka.villages) continue;
+      for (const village of taluka.villages) {
+        if (type === 'village' && village._id.equals(id)) {
+          return village.name;
+        }
+      }
+    }
+  }
+}
 
 orderController.AddOrUpdateOrderData = async (req, res, next) => {
   const session = await orderSch.startSession();
@@ -87,7 +228,6 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
       } else if (order.order_type && order.order_type !== 'confirm') {
         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either "confirm" or "future"', null);
       } else {
-        console.log(order)
         order.mark_as_done = null;
         order.future_order_date = null;
       }
@@ -138,7 +278,6 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
       }
       order.total_amount = totalAmount;
       order.advisor_name = req.user.id;
-      console.log('--------------',order)
       const newOrder = new orderSch(order);
       await newOrder.save({ session });
       await session.commitTransaction();
@@ -153,58 +292,174 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
   }
 };
 
+// orderController.UpdateOrder = async (req, res, next) => {
+//   const session = await orderSch.startSession();
+
+//   try {
+//     session.startTransaction();
+//     const id = req.body.order_id;
+//     if (!id) {
+//       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order ID is required for update', null);
+//     }
+
+//     const existingOrder = await orderSch.findOne({ order_id: id });
+//     if (!existingOrder) {
+//       await session.abortTransaction();
+//       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Order not found', null);
+//     }
+
+//     const { _id, updated_at, ...updatedData } = req.body;
+//     if (!updatedData.order_type && (updatedData.order_type !== 'confirm' || updatedData.order_type !== 'cancel' || updatedData.order_type !== 'return')) {
+//       await session.abortTransaction();
+//       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either confirm, cancel or future ', null);
+//     }
+//     updatedData.future_order_date = null;
+//     if (existingOrder.order_type !== 'confirm') updatedData.added_at = Date.now();
+//     if (updatedData.status !== 'return' && updatedData.status !== 'cancel') updatedData.status = 'confirm';
+
+//     const today = new Date();
+//     const sevenDaysAgo = new Date(today);
+//     sevenDaysAgo.setDate(today.getDate() - 7);
+
+//     if (updatedData.status === 'return' && existingOrder.added_at) {
+//       const addedAtDate = new Date(existingOrder.added_at);
+//       if (addedAtDate < sevenDaysAgo) {
+//         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order can not Update to Return due to return policy of 7 days', null);
+//       }
+//     }
+
+//     if (updatedData.order_type === 'future' && updatedData.future_order_date) {
+//       if (updatedData.future_order_date && new Date(updatedData.future_order_date) <= new Date(existingOrder.future_order_date)) {
+//         await session.abortTransaction();
+//         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Extended Future order date must be greater than the existing future order date', null);
+//       }
+//       updatedData.mark_as_done = false;
+//       updatedData.future_order_date = new Date(updatedData.future_order_date);
+//     }
+
+//     let totalAmount = 0;
+//     if ((updatedData.status === 'confirm' || existingOrder.status === 'confirm') && updatedData.products && Array.isArray(updatedData.products)) {
+//       for (const product of updatedData.products) {
+//         const productDetails = await productSch.findById(product.id).session(session);
+//         if (!productDetails) {
+//           await session.abortTransaction();
+//           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found for Order', null);
+//         }
+//         if (existingOrder.order_type === 'future' && updatedData.order_type === 'confirm') {
+//           productDetails.avl_qty -= product.quantity;
+//           if (productDetails.avl_qty < 0) {
+//             await session.abortTransaction();
+//             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Insufficient stock available', null);
+//           }
+//           await productDetails.save({ new: true }); //
+//         } else {
+//           const existingProductInOrder = existingOrder.products.find((p) => p.id.toString() === product.id.toString());
+//           let quantityDifference = 0;
+
+//           if (existingProductInOrder) {
+//             quantityDifference = product.quantity - existingProductInOrder.quantity;
+//           } else {
+//             quantityDifference = product.quantity;
+//           }
+
+//           if (quantityDifference > productDetails.avl_qty) {
+//             await session.abortTransaction();
+//             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
+//           }
+
+//           productDetails.avl_qty -= quantityDifference;
+//           if (productDetails.avl_qty < 0) {
+//             await session.abortTransaction();
+//             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Insufficient stock available', null);
+//           }
+
+//           await productDetails.save({ session });
+//         }
+
+//         let subtotal = productDetails.price * product.quantity;
+//         subtotal -= productDetails.discount;
+//         const sGstAmount = subtotal * (productDetails.s_gst / 100);
+//         const cGstAmount = subtotal * (productDetails.c_gst / 100);
+//         const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
+//         totalAmount += totalPriceForProduct;
+//       }
+//     }
+
+//     updatedData.total_amount = totalAmount;
+//     updatedData.updated_at = Date.now();
+//     // const updatedOrder = await orderSch.findByIdAndUpdate(id, { $set: updatedData }, { new: true }).session(session);
+//     const updatedOrder = await orderSch.findByIdAndUpdate(existingOrder._id, { $set: updatedData }, { new: true }).session(session);
+//     await session.commitTransaction();
+//     return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, 'Order updated successfully', null);
+//   } catch (err) {
+//     await session.abortTransaction();
+//     next(err);
+//   } finally {
+//     session.endSession();
+//   }
+// };
+
+
 orderController.UpdateOrder = async (req, res, next) => {
   const session = await orderSch.startSession();
-
+  let message;
   try {
     session.startTransaction();
-    const id = req.body.order_id;
+    const id = req.body.order_id || req.query.order_id;
     if (!id) {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order ID is required for update', null);
     }
-
     const existingOrder = await orderSch.findOne({ order_id: id });
     if (!existingOrder) {
       await session.abortTransaction();
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Order not found', null);
     }
-
     const { _id, updated_at, ...updatedData } = req.body;
-    if (!updatedData.order_type && (updatedData.order_type !== 'confirm' || updatedData.order_type !== 'cancel' || updatedData.order_type !== 'return')) {
-      await session.abortTransaction();
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order type must be either confirm, cancel or future ', null);
-    }
-    updatedData.future_order_date = null;
-    if (existingOrder.order_type !== 'confirm') updatedData.added_at = Date.now();
-    if (updatedData.status !== 'return' && updatedData.status !== 'cancel') updatedData.status = 'confirm';
+    if (updatedData.order_type === 'confirm') {
+      const today = new Date();
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(today.getDate() - 7);
 
-    const today = new Date();
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(today.getDate() - 7);
-
-    if (updatedData.status === 'return' && existingOrder.added_at) {
-      const addedAtDate = new Date(existingOrder.added_at);
-      if (addedAtDate < sevenDaysAgo) {
-        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order can not Update to Return due to return policy of 7 days', null);
+      if (updatedData.status === 'return' && existingOrder.status === 'confirm') {
+        const addedAtDate = new Date(existingOrder.added_at);
+        if (addedAtDate < sevenDaysAgo) {
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order can not Update to Return due to return policy of 7 days', null);
+        }
       }
-    }
-
-    if (updatedData.order_type === 'future' && updatedData.future_order_date) {
-      if (updatedData.future_order_date && new Date(updatedData.future_order_date) <= new Date(existingOrder.future_order_date)) {
-        await session.abortTransaction();
-        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Extended Future order date must be greater than the existing future order date', null);
+      message = 'Order place successfully!';
+    } else if (updatedData.order_type === 'future') {
+      if (updatedData.status === 'cancel') {
+        updatedData.status = 'cancel';
+        updatedData.mark_as_done = false;
+        updatedData.future_order_date = null;
+        message = 'Order cancel successfully!';
+      } else if (updatedData.future_order_date && updatedData.status === "null") {
+        if (updatedData.future_order_date && new Date(updatedData.future_order_date) <= new Date(existingOrder.future_order_date)) {
+          await session.abortTransaction();
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Extended Future order date must be greater than the existing future order date', null);
+        }
+        updatedData.mark_as_done = false;
+        updatedData.future_order_date = new Date(updatedData.future_order_date);
+        updatedData.status = null;
+        message = 'Order extended successfully!';
+      } else if (updatedData.order_type === 'confirm' && updatedData.status === 'confirm' && existingOrder.order_type === 'future' && existingOrder.status !== 'cancel') {
+        (updatedData.mark_as_done = true), (updatedData.future_order_date = null);
+        updatedData.added_at = Date.now();
+        message = 'Order updated successfully!';
       }
-      updatedData.mark_as_done = false;
-      updatedData.future_order_date = new Date(updatedData.future_order_date);
     }
 
     let totalAmount = 0;
-    if ((updatedData.status === 'confirm' || existingOrder.status === 'confirm') && updatedData.products && Array.isArray(updatedData.products)) {
+    if (updatedData.products && Array.isArray(updatedData.products)) {
       for (const product of updatedData.products) {
         const productDetails = await productSch.findById(product.id).session(session);
         if (!productDetails) {
           await session.abortTransaction();
           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found for Order', null);
+        }
+        if (product.quantity > productDetails.avl_qty) {
+          await session.abortTransaction();
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
         }
         if (existingOrder.order_type === 'future' && updatedData.order_type === 'confirm') {
           productDetails.avl_qty -= product.quantity;
@@ -213,30 +468,7 @@ orderController.UpdateOrder = async (req, res, next) => {
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Insufficient stock available', null);
           }
           await productDetails.save({ new: true }); //
-        } else {
-          const existingProductInOrder = existingOrder.products.find((p) => p.id.toString() === product.id.toString());
-          let quantityDifference = 0;
-
-          if (existingProductInOrder) {
-            quantityDifference = product.quantity - existingProductInOrder.quantity;
-          } else {
-            quantityDifference = product.quantity;
-          }
-
-          if (quantityDifference > productDetails.avl_qty) {
-            await session.abortTransaction();
-            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
-          }
-
-          productDetails.avl_qty -= quantityDifference;
-          if (productDetails.avl_qty < 0) {
-            await session.abortTransaction();
-            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Insufficient stock available', null);
-          }
-
-          await productDetails.save({ session });
         }
-
         let subtotal = productDetails.price * product.quantity;
         subtotal -= productDetails.discount;
         const sGstAmount = subtotal * (productDetails.s_gst / 100);
@@ -248,10 +480,9 @@ orderController.UpdateOrder = async (req, res, next) => {
 
     updatedData.total_amount = totalAmount;
     updatedData.updated_at = Date.now();
-    // const updatedOrder = await orderSch.findByIdAndUpdate(id, { $set: updatedData }, { new: true }).session(session);
     const updatedOrder = await orderSch.findByIdAndUpdate(existingOrder._id, { $set: updatedData }, { new: true }).session(session);
     await session.commitTransaction();
-    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, 'Order updated successfully', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, message || 'Order updated successfully', null);
   } catch (err) {
     await session.abortTransaction();
     next(err);
