@@ -12,7 +12,7 @@ complainController.getAllcomplain = async (req, res, next) => {
 
     const populateFields = [
       { path: 'product_id', select: 'name.englishname name.gujaratiname' },
-      { path: 'customer_id', select: 'customer_name' },
+      { path: 'customer_id', select: 'customer_name  firstname middlename lastname' },
       { path: 'created_by', select: 'name' },
       { path: 'Comment.name', select: 'name' },
     ];
@@ -57,8 +57,6 @@ complainController.getAllcomplain = async (req, res, next) => {
     next(err);
   }
 };
-
-
 
 complainController.addcomplain = async (req, res, next) => {
   try {
@@ -146,7 +144,6 @@ complainController.updatecomplain = async (req, res, next) => {
   }
 };
 
-
 complainController.deletecomplain = async (req, res, next) => {
   try {
     const id = req.query.id;
@@ -163,6 +160,62 @@ complainController.deletecomplain = async (req, res, next) => {
     next(err);
   }
 };
+
+// complainController.getbyid = async (req, res, next) => {
+//   try {
+//     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+//     const userId = req.query.user_id;
+//     const { customer_id } = req.query;
+
+//     const query = {};
+//     if (customer_id) {
+//       query.customer_id = customer_id;
+//     }
+
+//     if (userId) {
+//       query.created_by = userId;
+//       query.resolution = 'open'
+//     }
+
+//     if (searchQuery && typeof searchQuery === 'string' && searchQuery.trim() !== '') {
+//       query.$or = [
+//         { title: { $regex: searchQuery, $options: 'i' } },
+//         { complain_id: { $regex: searchQuery, $options: 'i' } },
+//       ];
+//     }
+
+//     const populateFields = [
+//       { path: 'product_id', select: 'name.englishname name.gujaratiname' },
+//       { path: 'customer_id', select: 'customer_name' },
+//       { path: 'created_by', select: 'name' },
+//       { path: 'Comment.name', select: 'name' },
+//     ];
+
+//     let pulledData = await complainSch
+//       .find(query)
+//       .skip((page - 1) * size)
+//       .limit(size)
+//       .select(selectQuery)
+//       .populate(populateFields)
+//       .sort(sortQuery)
+//       .lean();
+
+//     pulledData = pulledData.map(complaint => {
+//       const resolvedById = complaint.resolved_by?.toString();
+//       const createdById = complaint.created_by?._id?.toString() || complaint.created_by?.toString();
+//       return {
+//         ...complaint,
+//         is_resolved_by: resolvedById === userId || createdById === userId,
+//       };
+//     });
+
+//     const totalData = await complainSch.countDocuments(query);
+//     return otherHelper.paginationSendResponse(res,httpStatus.OK,true,pulledData,"Complain data retrieved successfully",page,size,totalData );
+//   } catch (err) {
+//     console.error("Error in getting complaints: ", err);
+//     next(err);
+//   }
+// };
 
 complainController.getbyid = async (req, res, next) => {
   try {
@@ -189,20 +242,12 @@ complainController.getbyid = async (req, res, next) => {
 
     const populateFields = [
       { path: 'product_id', select: 'name.englishname name.gujaratiname' },
-      { path: 'customer_id', select: 'customer_name' },
+      { path: 'customer_id', select: 'customer_name  firstname middlename lastname' },
       { path: 'created_by', select: 'name' },
       { path: 'Comment.name', select: 'name' },
     ];
 
-    let pulledData = await complainSch
-      .find(query)
-      .skip((page - 1) * size)
-      .limit(size)
-      .select(selectQuery)
-      .populate(populateFields)
-      .sort(sortQuery)
-      .lean();
-
+    let pulledData = await complainSch .find(query) .skip((page - 1) * size).limit(size).select(selectQuery).populate(populateFields).sort(sortQuery).lean();
     pulledData = pulledData.map(complaint => {
       const resolvedById = complaint.resolved_by?.toString();
       const createdById = complaint.created_by?._id?.toString() || complaint.created_by?.toString();
@@ -212,6 +257,14 @@ complainController.getbyid = async (req, res, next) => {
       };
     });
 
+    if (userId) {
+      const priorityOrder = { high: 1, medium: 2, low: 3 };
+      pulledData.sort((a, b) => {
+        const priorityA = priorityOrder[a.priority] || 4;
+        const priorityB = priorityOrder[b.priority] || 4;
+        return priorityA - priorityB;
+      });
+    }
     const totalData = await complainSch.countDocuments(query);
     return otherHelper.paginationSendResponse(res,httpStatus.OK,true,pulledData,"Complain data retrieved successfully",page,size,totalData );
   } catch (err) {

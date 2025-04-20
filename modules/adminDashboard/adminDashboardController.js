@@ -39,17 +39,17 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
       .find({})
       .sort({ added_at: -1 })
       .limit(5)
-      .populate([{ path: 'categories', model: 'categories', select: 'name' }])
+      .populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }])
       .select('name categories avl_qty price hsn_code batch_no added_at');
     const users = await userSch.find().sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
-    const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name district taluka village mobile_number is_deleted');
+    const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted');
     const orders = await orderSch
       .find()
       .sort({ added_at: -1 })
       .limit(10)
       .select('order_id customer advisor_name total_amount status added_at')
       .populate([
-        { path: 'customer', model: 'customer', select: 'customer_name' },
+        { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ]);
     const getTotalForPeriod = async (model, dateField, periods) => {
@@ -218,7 +218,7 @@ const getDataByType = async (startDate, endDate, type) => {
           .find({
             added_at: { $gte: start, $lte: end },
           })
-          .sort({ added_at: -1 }).populate([{ path: 'categories', model: 'categories', select: 'name' },{ path: 'company', model: 'company', select: 'name' },{ path: 'packagingtype', model: 'packing-type', select: 'type' }]);
+          .sort({ added_at: -1 }).populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' },{ path: 'company', model: 'company', select: 'name' },{ path: 'packagingtype', model: 'packing-type', select: 'type_end type_guj' }]);
         break;
 
       case 'user':
@@ -238,7 +238,7 @@ const getDataByType = async (startDate, endDate, type) => {
             added_at: { $gte: start, $lte: end },
           })
           .sort({ added_at: -1 }).populate([
-            { path: 'customer', model: 'customer', select: 'customer_name' },
+            { path: 'customer', model: 'customer', select: 'customer_name  firstname middlename lastname' },
             { path: 'advisor_name', model: 'users', select: 'name' },
           ]);
         break;

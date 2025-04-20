@@ -11,7 +11,7 @@ salesExecutiveController.GetSalesExecutiveDashboard = async (req, res, next) => 
 
       populate = [
         { path: 'products.id', model: 'product', select: 'name  hsn_code discount batch_no price c_gst s_gst ' },
-        { path: 'customer_id', model: 'customer', select: 'customer_name  mobile_number ' },
+        { path: 'customer_id', model: 'customer', select: 'customer_name  firstname middlename lastname  mobile_number ' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ];
 
@@ -43,13 +43,14 @@ salesExecutiveController.GetSalesExecutiveDashboard = async (req, res, next) => 
       let totalReturnOrders = 0;
       let totalFutureOrders = 0;
       orders.forEach((order) => {
-        if (order.status === 'confirm') {
+
+        if (order.order_type === "confirm" &&  order.status  === 'confirm' ) {
           totalRevenue += order.total_amount;
           totalConfirmedOrders += 1;
-        } else if (order.status === 'return') {
+        } else if ( order.order_type === "confirm" && order.status === 'return') {
           totalRevenue -= order.total_amount;
           totalReturnOrders += 1;
-        } else if (order.order_type === 'future') {
+        } else if (order.order_type === 'future'  &&  order.status  === 'future') {
           totalFutureOrders += order.total_amount;
         }
       });
@@ -64,7 +65,7 @@ salesExecutiveController.GetSalesExecutiveDashboard = async (req, res, next) => 
       }),
     );
 
-    const customers = await customerSch.find({ created_by: loggedInUserId }).sort({ added_at: -1 }).select('customer_name mobile_number');
+    const customers = await customerSch.find({ created_by: loggedInUserId }).sort({ added_at: -1 }).limit(10).select('customer_name firstname lastname middlename mobile_number');
     const complain = await complainSch.find({ created_by: loggedInUserId }).sort({ date: -1 }).limit(3).select('complain_id  title  customer_id  created_at  priority').populate(populate);
     let response = totalMetrics.reduce(
       (acc, { period, totalRevenue, totalConfirmedOrders, totalReturnOrders, totalFutureOrders }) => {

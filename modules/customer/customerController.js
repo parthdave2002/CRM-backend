@@ -18,6 +18,9 @@ customerController.getAllCustomerList = async (req, res, next) => {
       const searchResults = await customerSch.find({
         $or: [
           { customer_name: { $regex: req.query.search, $options: 'i' } },
+          { firstname: { $regex: req.query.search, $options: 'i' } },
+          { lastname: { $regex: req.query.search, $options: 'i' } },
+          { middlename: { $regex: req.query.search, $options: 'i' } },
           { $expr: { $regexMatch: { input: { $toString: "$mobile_number" }, regex: searchQuery, options: "i" } } }
         ],
       });
@@ -26,7 +29,7 @@ customerController.getAllCustomerList = async (req, res, next) => {
     }
 
     populate = [{ path: 'crops', model: 'crop', select: 'name_eng name_guj'},{ path: 'created_by', model: 'users', select: 'name' }];
-    selectQuery = 'customer_name mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at is_deleted created_by';
+    selectQuery = 'customer_name  firstname middlename lastname  mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at is_deleted created_by';
     if (req.query.id) {
       searchQuery = { _id: req.query.id };
     }
