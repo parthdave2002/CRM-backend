@@ -16,7 +16,8 @@ cropController.getAllcrop = async (req, res, next) => {
     }
     if (req.query.search && req.query.search !== 'null') {
       const searchResults = await cropSch.find({
-        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
+        $or: [{ name_eng: { $regex: req.query.search, $options: 'i' } }],
+        $or: [{ name_guj: { $regex: req.query.search, $options: 'i' } }],
       });
       if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Crop data found', page, size, searchResults.length);

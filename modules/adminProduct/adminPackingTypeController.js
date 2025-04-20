@@ -9,11 +9,15 @@ adminPackingTypeController.getAllPackingTypeList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
     searchQuery = { ...searchQuery, is_deleted: false };
+    
+    if (req.query.search && req.query.search !== 'null') {
+      const searchResults = await packingtypeSch.find({
+        $or: [{ type_eng: { $regex: req.query.search, $options: 'i' } }],
+      });
+      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Packing Data found', page, size, searchResults.length);
+    } 
 
-    if (req.query.search) {
-      const searchRegex = { $regex: req.query.search, $options: 'i' };
-      searchQuery = { $or: [{ type: searchRegex }] };
-    }
 
     const pulledData = await otherHelper.getQuerySendResponse(packingtypeSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Packingtype Data get successfully", page, size, pulledData.totalData);

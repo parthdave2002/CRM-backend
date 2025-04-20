@@ -18,7 +18,7 @@ adminCategoryController.getAllCategoryList = async (req, res, next) => {
     }
     if (req.query.search && req.query.search !== 'null') {
       const searchResults = await categorySch.find({
-        $or: [{ name: { $regex: req.query.search, $options: 'i' } }],
+        $or: [{ name_eng: { $regex: req.query.search, $options: 'i' } }],
       });
       if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search data found', page, size, searchResults.length);
