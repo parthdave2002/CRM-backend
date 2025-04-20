@@ -11,7 +11,7 @@ orderController.getAllOrderList = async (req, res, next) => {
 
     populate = [
       { path: 'products.id', model: 'product' },
-      { path: 'customer', model: 'customer', select: 'customer_name' },
+      { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village taluka district' },
       { path: 'advisor_name', model: 'users', select: 'name' },
     ];
 
@@ -44,7 +44,7 @@ orderController.getAllOrderList = async (req, res, next) => {
     } else {
       selectQuery = 'order_id customer advisor_name total_amount status added_at';
       populate = [
-        { path: 'customer', model: 'customer', select: 'customer_name' },
+        { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village taluka district' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ];
     }
@@ -189,14 +189,13 @@ orderController.UpdateOrder = async (req, res, next) => {
       }
     }
 
-    if (updatedData.status === 'future' && updatedData.future_order_date) {
+    if (updatedData.order_type === 'future' && updatedData.future_order_date) {
       if (updatedData.future_order_date && new Date(updatedData.future_order_date) <= new Date(existingOrder.future_order_date)) {
         await session.abortTransaction();
         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Extended Future order date must be greater than the existing future order date', null);
       }
       updatedData.mark_as_done = false;
       updatedData.future_order_date = new Date(updatedData.future_order_date);
-      console.log("updatedData.future_order_date", updatedData.future_order_date)
     }
 
     let totalAmount = 0;
@@ -299,7 +298,7 @@ orderController.GetCallBacks = async (req, res, next) => {
           mark_as_done: false,
           future_order_date: { $lt: endDate },
         })
-        .populate([{ path: 'customer', model: 'customer', select: 'customer_name mobile_number' }]);
+        .populate([{ path: 'customer', model: 'customer', select: 'customer_name  firstname middlename lastname mobile_number' }]);
 
       // const ordersWithCounts = await Promise.all(
       //   orders.map(async (order) => {
@@ -334,7 +333,7 @@ orderController.GetCallBacks = async (req, res, next) => {
           order_type: 'future',
           future_order_date: { $gt: today },
         })
-        .populate([{ path: 'customer', model: 'customer', select: 'customer_name mobile_number' }]);
+        .populate([{ path: 'customer', model: 'customer', select: 'customer_name  firstname middlename lastname mobile_number' }]);
 
       // return otherHelper.sendResponse(res, httpStatus.OK, true, orders, null, 'Future Orders retrieved successfully!', null);
     }

@@ -22,7 +22,7 @@ const customerSchema = new schema({
   added_at: { type: Date },
   created_by: { type: schema.Types.ObjectId, ref: 'users' },
   updated_at: { type: Date },
-  ref_name : {type:  Number, ref: 'users'},
+  ref_name : {type:  Number, ref: 'customer'},
   updated_by: { type: schema.Types.ObjectId, ref: 'users' },
   is_deleted: { type: Boolean, default: false, required: true },
   deleted_by: { type: schema.Types.ObjectId, ref: 'users' },
