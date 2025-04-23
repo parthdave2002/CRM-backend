@@ -8,7 +8,7 @@ const http = require('http');
 const app = require('./app');
 const port = process.env.PORT || 8000;
 const env = process.env.ENV || 'Development';
-const app_name = process.env.APP_NAME || 'Waft Engine Server';
+const app_name = process.env.APP_NAME || 'Agri CRM';
 const server = http.createServer(app);
 
 app.set('PORT_NUMBER', port);

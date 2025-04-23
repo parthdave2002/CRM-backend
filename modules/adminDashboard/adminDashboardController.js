@@ -7,6 +7,7 @@ const roleSch = require('../../schema/roleSchema');
 const productSch = require("../../schema/productSchema");
 const orderSch = require("../../schema/orderSchema")
 const customerSch  =require("../../schema/customerSchema");
+const stateSch = require("../../schema/locationSchema")
 
 const adminDashboardController = {};
 
@@ -32,6 +33,68 @@ const getPeriodDates = (period) => {
 };
 
 
+// adminDashboardController.getDashboardData = async (req, res, next) => {
+//   try {
+//     const periods = ['daily', 'weekly', 'monthly'];
+//     const products = await productSch
+//       .find({})
+//       .sort({ added_at: -1 })
+//       .limit(5)
+//       .populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }])
+//       .select('name categories avl_qty price hsn_code batch_no added_at');
+//     const users = await userSch.find().sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
+//     const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted');
+//     const orders = await orderSch
+//       .find()
+//       .sort({ added_at: -1 })
+//       .limit(10)
+//       .select('order_id customer advisor_name total_amount status added_at')
+//       .populate([
+//         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
+//         { path: 'advisor_name', model: 'users', select: 'name' },
+//       ]);
+//     const getTotalForPeriod = async (model, dateField, periods) => {
+//       const totals = {};
+//       for (const period of periods) {
+//         const dateRange = getPeriodDates(period);
+//         const total = await model.find({
+//           [dateField]: { $gte: dateRange.startDate },
+//         });
+//         totals[period] = total.length;
+//       }
+//       return totals;
+//     };
+
+//     const totalProducts = await getTotalForPeriod(productSch, 'added_at', periods);
+//     const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
+//     const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
+//     const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
+
+//     return otherHelper.sendResponse(
+//       res,
+//       httpStatus.OK,
+//       true,
+//       {
+//         products,
+//         users,
+//         customers,
+//         orders,
+//         totalProducts,
+//         totalOrders,
+//         totalUsers,
+//         totalCustomers,
+//       },
+//       null,
+//       'Dashboard data fetched successfully',
+//       null,
+//     );
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+
+
 adminDashboardController.getDashboardData = async (req, res, next) => {
   try {
     const periods = ['daily', 'weekly', 'monthly'];
@@ -52,14 +115,23 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ]);
-    const getTotalForPeriod = async (model, dateField, periods) => {
+    const getTotalForPeriod = async (model, dateField, periods, getRevenue) => {
       const totals = {};
       for (const period of periods) {
         const dateRange = getPeriodDates(period);
-        const total = await model.find({
-          [dateField]: { $gte: dateRange.startDate },
-        });
-        totals[period] = total.length;
+        if (!getRevenue) {
+          const total = await model.find({
+            [dateField]: { $gte: dateRange.startDate },
+          });
+          totals[period] = total.length;
+        } else if (getRevenue) {
+          const total = await model.find({
+            [dateField]: { $gte: dateRange.startDate },
+            status: 'confirm',
+            order_type: 'confirm',
+          });
+          totals[period] = total.reduce((revenue, order) => revenue + order.total_amount, 0);
+        }
       }
       return totals;
     };
@@ -68,6 +140,28 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
     const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
     const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
     const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
+    const totalRevenue = await getTotalForPeriod(orderSch, 'added_at', periods, true);
+    const stateData = await stateSch.find({});
+    const enrichedData = customers.map((cust) => {
+      const districtName = findNameFromState(stateData, cust.district, 'district');
+      const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
+      const villageName = findNameFromState(stateData, cust.village, 'village');
+      return {
+        ...cust.toObject(),
+        district: {
+          _id: cust.district,
+          name: districtName,
+        },
+        taluka: {
+          _id: cust.taluka,
+          name: talukaName,
+        },
+        village: {
+          _id: cust.village,
+          name: villageName,
+        },
+      };
+    });
 
     return otherHelper.sendResponse(
       res,
@@ -76,12 +170,13 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
       {
         products,
         users,
-        customers,
+        customers: enrichedData || [],
         orders,
         totalProducts,
         totalOrders,
         totalUsers,
         totalCustomers,
+        totalRevenue,
       },
       null,
       'Dashboard data fetched successfully',
@@ -92,6 +187,27 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
   }
 };
 
+function findNameFromState(states, id, type) {
+  if (!id) return null;
+  for (const state of states) {
+    for (const district of state.districts) {
+      if (type === 'district' && district._id.equals(id)) {
+        return district.name;
+      }
+      for (const taluka of district.talukas) {
+        if (type === 'taluka' && taluka._id.equals(id)) {
+          return taluka.name;
+        }
+        for (const village of taluka.villages) {
+          if (type === 'village' && village._id.equals(id)) {
+            return village.name;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
 adminDashboardController.getNoOfCustomerByRegistration = async (req, res, next) => {
   try {
     const data = await userSch.aggregate([
