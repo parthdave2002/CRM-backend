@@ -56,8 +56,10 @@ customerController.getAllCustomerList = async (req, res, next) => {
 };
 
 function findNameFromState(states, id, type) {
-  if (!id) return null;
-  for (const state of states) {
+  if (!id || !states ) return null;
+  const statesData = Array.isArray(states)? states :[states] 
+  for (const state of statesData) {
+    if(!state.districts) return null;
     for (const district of state.districts) {
       if (type === 'district' && district._id.equals(id)) {
         return district.name;
@@ -191,12 +193,10 @@ customerController.matchNumber = async (req, res, next) => {
       }
     }
     if (!customer)   return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'Customer not matched', null);
-    
-   console.log("customer >>>>>>>>", customer)
 
     let enrichedCustomer = customer.toObject();
     try {
-      const stateData = customer.state?.districts && Array.isArray(customer.state.districts) ? customer.state : await stateSch.findById(customer.state).lean();
+      const stateData = await stateSch.findById(customer.toObject().state._id).lean();
 
       if (stateData) {
         enrichedCustomer.district_name = findNameFromState(stateData, customer.district, 'district');
@@ -208,7 +208,6 @@ customerController.matchNumber = async (req, res, next) => {
         enrichedCustomer.village_name = null;
       }
     } catch (err) {
-      console.error("Error", err.message);
       enrichedCustomer.district_name = null;
       enrichedCustomer.taluka_name = null;
       enrichedCustomer.village_name = null;

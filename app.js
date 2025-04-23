@@ -106,6 +106,8 @@ app.use('/api', routes);
 app.use('/public/:w-:h/*', changephoto);
 
 app.use('/public', express.static('public'));
+app.use('/', express.static('dist'));
+
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
   const err = new Error('Not Found');

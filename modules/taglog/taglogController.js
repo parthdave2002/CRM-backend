@@ -198,6 +198,57 @@ taglogController.AddTaglogCustomer = async (req, res, next) => {
   }
 };
 
+// taglogController.getAllTaglogCustomers = async (req, res, next) => {
+//   try {
+//     const customer_id = req.query.customer_id;
+//     if (!customer_id) {
+//       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer ID is required', null);
+//     }
+
+//     if (!mongoose.Types.ObjectId.isValid(customer_id)) {
+//       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Customer ID', null);
+//     }
+//     const customerExists = await customerSch.findById(customer_id);
+//     if (!customerExists) {
+//       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
+//     }
+//     const customers = await taglogCustomerSch.find({ customer_id })
+//       .populate('customer_id', 'firstname middlename lastname')
+//       .populate('taglog_id', 'taglog_name subtaglog')
+//       .lean(); 
+
+//     const enrichedCustomers = customers.map((item) => {
+//       const taglog = item.taglog_id;
+//       const subtaglogId = item.subtaglog_id?.toString();
+
+//       let subtaglogName = null;
+//       if (taglog && Array.isArray(taglog.subtaglog) && subtaglogId) {
+//         const match = taglog.subtaglog.find((sub) => sub._id.toString() === subtaglogId);
+//         if (match) {
+//           subtaglogName = match.name;
+//         }
+//       }
+
+//       const customer = item.customer_id;
+//       const fullName = [customer?.firstname, customer?.middlename, customer?.lastname]
+//         .filter(Boolean)
+//         .join(' ');
+
+//       return {
+//         _id: item._id,
+//         taglog: { _id: taglog?._id, taglog_name: taglog?.taglog_name },
+//         subtaglog: { _id: subtaglogId,  name: subtaglogName, },
+//         comment: item.comment, 
+//         created_by: item.created_by,
+//         createdAt: item.createdAt,
+//       };
+//     });
+//     return otherHelper.sendResponse(res,httpStatus.OK,true,enrichedCustomers,null,'Customer Taglogs fetched successfully',null);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
 taglogController.getAllTaglogCustomers = async (req, res, next) => {
   try {
     const customer_id = req.query.customer_id;
@@ -212,10 +263,16 @@ taglogController.getAllTaglogCustomers = async (req, res, next) => {
     if (!customerExists) {
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
     }
-    const customers = await taglogCustomerSch.find({ customer_id })
+    let { page, size, sortQuery } = otherHelper.parseFilters(req);
+
+    const totalData = await taglogCustomerSch.countDocuments({ customer_id });
+    const customers = await taglogCustomerSch
+      .find({ customer_id })
       .populate('customer_id', 'firstname middlename lastname')
       .populate('taglog_id', 'taglog_name subtaglog')
-      .lean(); 
+      .skip((page- 1) * size)
+      .limit(size)
+      .lean();
 
     const enrichedCustomers = customers.map((item) => {
       const taglog = item.taglog_id;
@@ -230,20 +287,18 @@ taglogController.getAllTaglogCustomers = async (req, res, next) => {
       }
 
       const customer = item.customer_id;
-      const fullName = [customer?.firstname, customer?.middlename, customer?.lastname]
-        .filter(Boolean)
-        .join(' ');
+      const fullName = [customer?.firstname, customer?.middlename, customer?.lastname].filter(Boolean).join(' ');
 
       return {
         _id: item._id,
         taglog: { _id: taglog?._id, taglog_name: taglog?.taglog_name },
-        subtaglog: { _id: subtaglogId,  name: subtaglogName, },
-        comment: item.comment, 
+        subtaglog: { _id: subtaglogId, name: subtaglogName },
+        comment: item.comment,
         created_by: item.created_by,
-        createdAt: item.createdAt,
+        created_at: item.created_at,
       };
     });
-    return otherHelper.sendResponse(res,httpStatus.OK,true,enrichedCustomers,null,'Customer Taglogs fetched successfully',null);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, enrichedCustomers, 'Customer Taglogs fetched successfully', page, size, totalData);
   } catch (err) {
     next(err);
   }
