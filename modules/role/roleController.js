@@ -29,7 +29,7 @@ roleController.GetRoles = async (req, res, next) => {
     
     let pulledData = await otherHelper.getQuerySendResponse(roleSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     let AccessData = await getAccessData(req);
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, {pulledData:pulledData.data,  AccessData: AccessData}, roleConfig.roleGet, page, size, pulledData.totalData);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, roleConfig.roleGet, page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }

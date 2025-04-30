@@ -57,6 +57,9 @@ adminPackingTypeController.changeStatus = async (req, res, next) => {
     const packingType = await packingtypeSch.findById(id);
     if (!packingType)  return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Packing Type not found', null);
 
+    const isAssociated = await  productSchema.findOne({ packagingtype: id }); 
+    if (isAssociated)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot Deactive packing type as it is associated with a product', null);
+
     let changeStatus = !packingType.is_active;
     const updatedPackingType = await packingtypeSch.findByIdAndUpdate(id, { is_active : changeStatus ,updated_at: new Date() }, { new: true });
     return otherHelper.sendResponse(res, httpStatus.OK, true, updatedPackingType, null,packingType.is_active ?"Packing Type Deactivated successfully" : "Packing Type activated successfully", null);
@@ -77,7 +80,7 @@ adminPackingTypeController.DeletePackingType = async (req, res, next) => {
     if (isAssociated)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot Delete packing type as it is associated with a product', null);
     
     const deleted = await packingtypeSch.findByIdAndUpdate(id, { is_deleted : true, is_active:false, updated_at: new Date() }, { new: true });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Packingtype soft delete successfully', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Packingtype deleted successfully', null);
   } catch (err) {
     next(err);
   }

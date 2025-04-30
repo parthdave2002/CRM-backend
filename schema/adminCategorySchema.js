@@ -10,7 +10,6 @@ const productcategorySchema = new schema({
     added_at: { type: Date,  default: Date.now},
     updated_at: { type: Date,  default: Date.now},
     is_deleted: { type: Boolean, default: false },
-    updated_at: { type: Date,  default: Date.now},
 });
 
 module.exports = Category = mongoose.model('categories', productcategorySchema);

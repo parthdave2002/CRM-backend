@@ -24,5 +24,6 @@ router.get('/verify-token', userModule.VerifyResetPasswordToken);
 router.post('/reset-password', userModule.ResetPassword);
 
 router.get('/profile', authentication, userModule.GetProfile);
+router.patch('/update-profile', authentication,authorization("User"), uploadHelper.uploadFiles('public/user', 'single', 'user_pic'), userModule.updateUserProfileImage);
 
 module.exports = router;
