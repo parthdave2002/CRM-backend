@@ -98,19 +98,10 @@ const getPeriodDates = (period) => {
 adminDashboardController.getDashboardData = async (req, res, next) => {
   try {
     const periods = ['daily', 'weekly', 'monthly'];
-    const products = await productSch
-      .find({})
-      .sort({ added_at: -1 })
-      .limit(5)
-      .populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }])
-      .select('name categories avl_qty price hsn_code batch_no added_at');
-    const users = await userSch.find().sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
+    const products = await productSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }]).select('name categories avl_qty price hsn_code batch_no added_at'); 
+    const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
     const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted');
-    const orders = await orderSch
-      .find()
-      .sort({ added_at: -1 })
-      .limit(10)
-      .select('order_id customer advisor_name total_amount status added_at')
+    const orders = await orderSch.find().sort({ added_at: -1 }).limit(10).select('order_id customer advisor_name total_amount status added_at')
       .populate([
         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
         { path: 'advisor_name', model: 'users', select: 'name' },

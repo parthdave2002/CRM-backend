@@ -16,8 +16,10 @@ cropController.getAllcrop = async (req, res, next) => {
     }
     if (req.query.search && req.query.search !== 'null') {
       const searchResults = await cropSch.find({
-        $or: [{ name_eng: { $regex: req.query.search, $options: 'i' } }],
-        $or: [{ name_guj: { $regex: req.query.search, $options: 'i' } }],
+        $or: [
+          { name_eng: { $regex: req.query.search, $options: 'i' } },
+          { name_guj: { $regex: req.query.search, $options: 'i' } }
+        ],
       });
       if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Crop data found', page, size, searchResults.length);
@@ -68,9 +70,12 @@ cropController.changestatus = async (req, res, next) => {
     const cropdata = await cropSch.findById(id);
     if (!cropdata)  return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Crop not found', null);
 
+    const isAssociated = await customerSch.findOne({ crops: id });
+    if (isAssociated) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot deactive crop because its assigned to product', null);
+
     let changeStatus = !cropdata.is_active;
     const updatedPackingType = await cropSch.findByIdAndUpdate(id, { is_active : changeStatus ,updated_at: new Date() }, { new: true });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedPackingType, null,cropdata.is_active ?"Crop Deactivated successfully" : "Crop activated successfully", null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedPackingType, null,cropdata.is_active ?"Crop deactivated successfully" : "Crop activated successfully", null);
   } catch (err) {
     next(err);
   }
@@ -85,7 +90,7 @@ cropController.deletecrop = async (req, res, next) => {
     if (!cropdata) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Crop not found', null);
 
     const isAssociated = await customerSch.findOne({ crops: id });
-    if (isAssociated) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot Delete packing type as it is associated with a product', null);
+    if (isAssociated) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot delete crop because its assign to product', null);
 
     const deleted = await cropSch.findByIdAndUpdate(id, { is_deleted : true, is_active: false ,updated_at: new Date() }, { new: true });
     return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Crop delete successfully', null);

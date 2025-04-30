@@ -70,7 +70,7 @@ taglogController.DeleteTaglog = async (req, res, next) => {
     if(!taglog_id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Taglog not found', null);
 
     const deleted = await taglogSch.findByIdAndUpdate(id, { is_deleted : true, is_active: false, updated_at: new Date() }, { new: true });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Taglog Soft delete successfully', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Taglog deleted successfully', null);
   } catch (err) {
     next(err);
   }

@@ -68,9 +68,12 @@ companyController.changeStatus = async (req, res, next) => {
     const company = await companySch.findById(id);
     if (!company)  return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Company not found', null);
 
+    const isAssociated = await  productSchema.findOne({ company: id }); 
+    if (isAssociated)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot deactive company because its assign to product', null);
+
     let changeStatus = !company.is_active;
     const updatedcompany = await companySch.findByIdAndUpdate(id, { is_active : changeStatus ,updated_at: new Date() }, { new: true });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedcompany, null,company.is_active ?"Company Deactivated successfully" : "Company activated successfully", null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedcompany, null,company.is_active ?"Company deactivated successfully" : "Company activated successfully", null);
   } catch (err) {
     next(err);
   }
@@ -85,10 +88,10 @@ companyController.DeleteCompany = async (req, res, next) => {
     if (!category) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Company not found', null);
     
     const isAssociated = await  productSchema.findOne({ company: id }); 
-    if (isAssociated)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot Delete Company as it is associated with a product', null);
+    if (isAssociated)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Cannot delete company because its assign to product', null);
 
     const deleted = await companySch.findByIdAndUpdate(id, { is_deleted : true, is_active : false , updated_at: new Date() }, { new: true });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Company soft delete successfully', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, deleted, null, 'Company delete successfully', null);
   } catch (err) {
     next(err);
   }

@@ -5,9 +5,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('./userConfig');
 const httpStatus = require('http-status');
-const emailHelper = require('./../../helper/email.helper');
-const twoFaHelper = require('./../../helper/2fa.helper');
-const renderMail = require('./../template/templateController').internal;
 const otherHelper = require('../../helper/others.helper');
 const loginLogs = require('./loginlogs/loginlogController').internal;
 const { getSetting } = require('../../helper/settings.helper');
@@ -20,8 +17,8 @@ const orderSch = require('../../schema/orderSchema');
 
 userController.GetCheckUser = async (req, res, next) => {
   try {
-      const username = req.query.search;
-      const existingUser = await userSch.findOne({name : username});
+      const email = req.query.search;
+      const existingUser = await userSch.findOne({email : email});
       if(existingUser){
         return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'user exist!', null);
       }
@@ -35,22 +32,22 @@ userController.GetCheckUser = async (req, res, next) => {
 
 userController.GetAllUser = async (req, res, next) => {
   try {
-    if(req.query.id){
-      const user = await userSch.findById(req.query.id);
-      return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'User Data found', null);
-    }
+   
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
     searchQuery = { ...searchQuery, is_deleted: false };
+    selectQuery = 'name email password gender mobile_no date_of_joining date_of_birth address emergency_mobile_no emergency_contact_person added_at role user_id is_active';
+    populate = [{ path: 'role',  model: 'roles', select: 'role_title' }];
+
+    if(req.query.id){
+      const user = await userSch.findById(req.query.id).select(selectQuery).populate(populate);;
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, user,  null, " Search Data found", page, size, user.length);
+    }
 
     if (req.query.search && req.query.search !== "null"){
-      const searchResults = await userSch.find({
-        $or: [{ name: { $regex: req.query.search, $options: "i" } }], 
-      });
+      const searchResults = await userSch.find({ $or: [{ name: { $regex: req.query.search, $options: "i" } }]}) .select(selectQuery).populate(populate);
       if (searchResults.length === 0)   return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search Data found", page, size, searchResults.length);
     }
-    selectQuery = 'name email password gender mobile_no date_of_joining  role user_id is_active';
-    populate = [{ path: 'role',  model: 'roles', select: 'role_title' }];
 
     const pulledData = await otherHelper.getQuerySendResponse(userSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, config.gets, page, size, pulledData.totalData);
@@ -146,7 +143,7 @@ userController.UpdateUserImage = async (req, res, next) => {
     }
 
     const updatedUser = await userSch.findByIdAndUpdate( userId, updateData, { new: true } );
-    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedUser, null, 'user update success!', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedUser, null, 'user updated successfully', null);
   } catch (err) {
     next(err);
   }
@@ -196,11 +193,11 @@ userController.Login = async (req, res, next) => {
   try {
     let errors = {};
     const password = req.body.password;
-    let username = req.body.username.trim();
-    const user = await userSch.findOne({ name: username });
+    let email = req.body.email;
+    const user = await userSch.findOne({ email: email });
     if (!user) {
-      errors.username = "User not found";
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, errors, errors.username, null);
+      errors.email = "User email not found";
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, errors, errors.email, null);
     }
 
     if (!user.is_active) {
@@ -237,6 +234,23 @@ userController.GetProfile = async (req, res, next) => {
     let populate = [{ path: 'role', select: '_id role_title' }];
     const userProfile = await userSch.findById(req.user.id, 'user_pic name email  role').populate(populate);
     return otherHelper.sendResponse(res, httpStatus.OK, true, userProfile, null, null, null);
+  } catch (err) {
+    next(err);
+  }
+};
+
+userController.updateUserProfileImage = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    if (!userId)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'User ID is required', null);
+    if (!req?.file?.filename)    return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Profile image file is required', null);
+    
+    const user = await userSch.findById(userId);
+    if (!user)  return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'User not found', null);
+    
+    const updateData = {$set: {  user_pic: req.file.filename,  updated_at: new Date()  } };
+    const updatedUser = await userSch.findByIdAndUpdate(userId, updateData, { new: true });
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedUser, null, 'User profile image updated successfully!', null);
   } catch (err) {
     next(err);
   }
@@ -302,12 +316,11 @@ userController.selectMultipleData = async (req, res, next) => {
 userController.ForgotPassword = async (req, res, next) => {
   try {
     let errors = {};
-    let username = req.body.username.trim();
-    const user = await userSch.findOne({ name: username });
-    console.log('user: ', user);
+    let email = req.body.email;
+    const user = await userSch.findOne({ email: email });
     if (!user) {
-      errors.username = 'User not found';
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, errors, errors.username, null);
+      errors.email = 'User email not found';
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, errors, errors.email, null);
     }
 
     if (!user.is_active) {
@@ -332,7 +345,7 @@ userController.ForgotPassword = async (req, res, next) => {
     let token = await jwt.sign(payload, secretOrKey, {
       expiresIn: process.env.ResetTokenExpiresIn ||'5m',
     });
-    console.log('token: ', token);
+
     await new tokenSchema({
       userId: user._id,
       token: token,
@@ -375,7 +388,6 @@ userController.VerifyResetPasswordToken = async (req, res, next) => {
     let decodedToken;
     try {
       decodedToken = await jwt.verify(token, secretOrKey); // Verify the JWT refresh token
-      console.log('decodedToken: ', decodedToken);
     } catch (err) {
       return otherHelper.sendResponse(res, httpStatus.UNAUTHORIZED, false, null, null, 'Token Expired', null);
     }
