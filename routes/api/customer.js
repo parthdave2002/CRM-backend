@@ -5,7 +5,7 @@ const { authentication, authorization } = require('../../middleware/auth.middlew
 
 router.get('/get-customers',authentication,customerController.getAllCustomerList);
 router.post('/add-customer',authentication, customerController.AddCustomerData);
-router.put('/update-customer/:id',authentication, customerController.updateCustomerData);
+router.put('/update-customer',authentication, customerController.updateCustomerData);
 router.delete('/remove-customer',authentication, customerController.DeleteCustomerData);
 router.put('/change-status',authentication, customerController.changeStatus);
 router.get('/matchnumber',authentication,  customerController.matchNumber);

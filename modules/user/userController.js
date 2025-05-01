@@ -35,7 +35,7 @@ userController.GetAllUser = async (req, res, next) => {
    
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
     searchQuery = { ...searchQuery, is_deleted: false };
-    selectQuery = 'name email password gender mobile_no date_of_joining date_of_birth address emergency_mobile_no emergency_contact_person added_at role user_id is_active';
+    selectQuery = 'name email password gender mobile_no date_of_joining date_of_birth address emergency_mobile_no emergency_contact_person added_at role pan_card bank_passbook aadhar_card user_id is_active user_pic';
     populate = [{ path: 'role',  model: 'roles', select: 'role_title' }];
 
     if(req.query.id){
@@ -241,7 +241,7 @@ userController.GetProfile = async (req, res, next) => {
 
 userController.updateUserProfileImage = async (req, res, next) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
     if (!userId)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'User ID is required', null);
     if (!req?.file?.filename)    return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Profile image file is required', null);
     

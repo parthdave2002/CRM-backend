@@ -38,7 +38,7 @@ taglogController.AddTaglog = async (req, res, next) => {
 
     const newTaglog = new taglogSch(taglogData);
     await newTaglog.save();
-    return otherHelper.sendResponse(res, httpStatus.OK, true, newTaglog, null, "Taglog Data Created successfully", null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, newTaglog, null, "Taglog Created successfully", null);
 
   } catch (err) {
     next(err);
