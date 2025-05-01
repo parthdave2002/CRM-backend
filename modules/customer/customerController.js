@@ -122,7 +122,7 @@ customerController.DeleteCustomerData = async (req, res, next) => {
 
 customerController.updateCustomerData = async (req, res, next) => {
   try {
-    const id = req.params.id;
+    const id = req.body.id;
     const customerData = req.body;
 
     if (!id) {
@@ -133,10 +133,10 @@ customerController.updateCustomerData = async (req, res, next) => {
     if (!customer) {
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
     }
-    const existingCustomer = await customerSch.findOne({ mobile_number: customerData.mobile_number });
-    if (existingCustomer) {
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer with this mobile number already exists', null);
-    }
+    // const existingCustomer = await customerSch.findOne({ mobile_number: customerData.mobile_number });
+    // if (existingCustomer) {
+    //   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer with this mobile number already exists', null);
+    // }
     const updatedCustomer = await customerSch.findByIdAndUpdate(id, { $set: customerData }, { new: true });
     return otherHelper.sendResponse(res, httpStatus.OK, true, updatedCustomer, null, 'Customer updated successfully', null);
   } catch (err) {
