@@ -19,7 +19,6 @@ productController.getAllProductList = async (req, res, next) => {
     ];
 
     if (req.query.id) {
-      console.log(req.query.id);
       const user = await productSch.findById(req.query.id).populate(populatedata);
       if (!user) {
         return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Product not found', null);
@@ -60,12 +59,13 @@ productController.getAllProductList = async (req, res, next) => {
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedResults, ' Search Data found', page, size, formattedResults.length);
     }
     const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populatedata);
+
     const formattedProducts = pulledData.data.map(product => ({
       ...product.toObject(),
       out_of_stock: product.avl_qty === 0 ? true : false,
     }));
 
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedProducts, 'Product Data get successfully', page, size, formattedProducts.length);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedProducts, 'Product Data get successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }

@@ -10,5 +10,6 @@ router.put('/update-order',authentication,authorization("Order"), OrderControlle
 router.delete('/remove-order',authentication,authorization("Order"), OrderController.DeleteOrderData);
 router.get('/get-callbacks', authentication, authorization('Order'), OrderController.GetCallBacks);
 router.patch('/update-future-order',authentication, OrderController.UpdateFutureOrder);
+router.get('/get-order-sales-executive',authentication,authorization("Order"), OrderController.getFilteredOrderList);
 
 module.exports = router

@@ -7,6 +7,12 @@ const orderSchema = new schema({
     {
       id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Product' },
       quantity: { type: Number, required: true, default: 1 },
+      price: { type: Number, required: true, default: 0 },
+      discount: { type: Number, required: true, default: 0 },
+      batch_no: { type: String },
+      s_gst: { type: Number, required: true, default: 0 },
+      c_gst: { type: Number, required: true, default: 0 },
+      hsn_code: { type: String },
     },
   ],
   customer: { type: schema.Types.ObjectId, required: true, ref: 'customer' },

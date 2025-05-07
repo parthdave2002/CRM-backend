@@ -11,7 +11,7 @@ orderController.getAllOrderList = async (req, res, next) => {
     let { page = 1, size = 10, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
 
     populate = [
-      { path: 'products.id', model: 'product' },
+      { path: 'products.id', model: 'product', populate: [  { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }], },
       {
         path: 'customer',
         model: 'customer',
@@ -187,6 +187,7 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
       order.order_id = `#AB-${todayDate}-${orderSuffix}`;
 
       let totalAmount = 0;
+      const updatedProducts = [];
       if (order.products && Array.isArray(order.products)) {
         for (const product of order.products) {
           const productDetails = await productSch.findById(product.id).session(session);
@@ -194,6 +195,7 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
             await session.abortTransaction();
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order', null);
           }
+          const { price, discount, s_gst, c_gst, batch_no, hsn_code } = productDetails;
           if (product.quantity > productDetails.avl_qty) {
             await session.abortTransaction();
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
@@ -212,8 +214,17 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
           const cGstAmount = subtotal * (productDetails.c_gst / 100);
           const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
           totalAmount += totalPriceForProduct;
+          updatedProducts.push({
+            id: product.id,
+            quantity: product.quantity,
+            price,
+            discount,
+            s_gst,
+            c_gst,batch_no,hsn_code
+          });
         }
       }
+      order.products = updatedProducts;
       order.total_amount = totalAmount;
       order.advisor_name = req.user.id;
       const newOrder = new orderSch(order);
@@ -280,6 +291,7 @@ orderController.UpdateOrder = async (req, res, next) => {
     }
 
     let totalAmount = 0;
+    const updatedProducts = [];
     if (updatedData.products && Array.isArray(updatedData.products)) {
       for (const product of updatedData.products) {
         const productDetails = await productSch.findById(product.id).session(session);
@@ -299,15 +311,24 @@ orderController.UpdateOrder = async (req, res, next) => {
           }
           await productDetails.save({ new: true }); //
         }
+        const { price, discount, s_gst, c_gst, batch_no, hsn_code } = productDetails;
         let subtotal = productDetails.price * product.quantity;
         subtotal -= productDetails.discount;
         const sGstAmount = subtotal * (productDetails.s_gst / 100);
         const cGstAmount = subtotal * (productDetails.c_gst / 100);
         const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
         totalAmount += totalPriceForProduct;
+        updatedProducts.push({
+          id: product.id,
+          quantity: product.quantity,
+          price,
+          discount,
+          s_gst,
+          c_gst,hsn_code,batch_no
+        });
       }
     }
-
+    updatedData.products = updatedProducts;
     updatedData.total_amount = totalAmount;
     updatedData.updated_at = Date.now();
     const updatedOrder = await orderSch.findByIdAndUpdate(existingOrder._id, { $set: updatedData }, { new: true }).session(session);
@@ -318,6 +339,39 @@ orderController.UpdateOrder = async (req, res, next) => {
     next(err);
   } finally {
     session.endSession();
+  }
+};
+
+orderController.getFilteredOrderList = async (req, res, next) => {
+  try {
+    const { page, size, sortQuery, search, startDate, endDate, status } = req.query;
+    const advisorId = req.user?.id;
+    const searchQuery = { advisor_name: advisorId,};
+    if (status) {  searchQuery.status = status;  }
+
+    if (startDate && endDate) {
+      searchQuery.added_at = {
+        $gte: new Date(startDate).setHours(0, 0, 0, 0),
+        $lte: new Date(endDate).setHours(23, 59, 59, 999), // Set to end of the day
+      };
+    }
+
+    if (search) {
+      const regex = { $regex: search.trim(), $options: 'i' };
+      searchQuery.$or = [{ order_id: regex }, { status: regex }];
+    }
+
+    const populate = [
+      { path: 'products.id', model: 'product' },
+      { path: 'customer', model: 'customer',  select: 'customer_name firstname middlename lastname',},
+      { path: 'advisor_name', model: 'users',   select: 'name'},
+    ];
+
+    const selectQuery = 'order_id order_type products customer advisor_name total_amount status added_at updated_at';
+    const populatedData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
+    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, populatedData.data, 'Filtered order data retrieved successfully', page, size, populatedData.totalData);
+  } catch (err) {
+    next(err);
   }
 };
 
