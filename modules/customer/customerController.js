@@ -122,23 +122,40 @@ customerController.DeleteCustomerData = async (req, res, next) => {
 
 customerController.updateCustomerData = async (req, res, next) => {
   try {
-    const id = req.body.id;
+    const id = req.body.id || req.query.id;
     const customerData = req.body;
 
     if (!id) {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer ID is required', null);
     }
-
+    const  populate = [
+      { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
+      { path: 'created_by', model: 'users', select: 'name' },
+      { path: 'state', model: 'State', select: 'name district' },
+    ];
     const customer = await customerSch.findById(id);
-    if (!customer) {
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
+    if (!customer)   return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
+
+    const updatedCustomer = await customerSch.findByIdAndUpdate(id, { $set: customerData }, { new: true }).populate(populate);
+    let enrichedCustomer = updatedCustomer.toObject();
+    try {
+      const stateData = await stateSch.findById(updatedCustomer.toObject().state._id).lean();
+
+      if (stateData) {
+        enrichedCustomer.district_name = findNameFromState(stateData, updatedCustomer.district, 'district');
+        enrichedCustomer.taluka_name = findNameFromState(stateData, updatedCustomer.taluka, 'taluka');
+        enrichedCustomer.village_name = findNameFromState(stateData, updatedCustomer.village, 'village');
+      } else {
+        enrichedCustomer.district_name = null;
+        enrichedCustomer.taluka_name = null;
+        enrichedCustomer.village_name = null;
+      }
+    } catch (err) {
+      enrichedCustomer.district_name = null;
+      enrichedCustomer.taluka_name = null;
+      enrichedCustomer.village_name = null;
     }
-    // const existingCustomer = await customerSch.findOne({ mobile_number: customerData.mobile_number });
-    // if (existingCustomer) {
-    //   return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer with this mobile number already exists', null);
-    // }
-    const updatedCustomer = await customerSch.findByIdAndUpdate(id, { $set: customerData }, { new: true });
-    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedCustomer, null, 'Customer updated successfully', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, enrichedCustomer, null, 'Customer updated successfully', null);
   } catch (err) {
     next(err);
   }
@@ -171,7 +188,7 @@ customerController.matchNumber = async (req, res, next) => {
       { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
       { path: 'created_by', model: 'users', select: 'name' },
       { path: 'state', model: 'State', select: 'name district' },
-      { path: 'ref_name', model: 'users', select: 'name', strictPopulate: false },
+      // { path: 'ref_name', model: 'users', select: 'name', strictPopulate: false },
     ];
     if (!number && !order_id && !complain_id) {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'At least one identifier (number, order_id, or complain_id) is required', null);

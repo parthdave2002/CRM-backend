@@ -52,6 +52,8 @@ salesExecutiveController.GetSalesExecutiveDashboard = async (req, res, next) => 
           totalReturnOrders += 1;
         } else if (order.order_type === 'future'  &&  order.status  === 'future') {
           totalFutureOrders += order.total_amount;
+        } else if (order.order_type === 'future') {
+          totalFutureOrders += 1;
         }
       });
 

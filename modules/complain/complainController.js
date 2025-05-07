@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const complainSch = require('../../schema/complainSchema');
 const { getAccessData } = require('../../helper/Access.helper');
+const mongoose = require('mongoose');
 
 const complainController = {};
 
@@ -45,6 +46,36 @@ complainController.getAllcomplain = async (req, res, next) => {
 
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, "Complain data found", page, size, searchResults.length);
     }
+    let pulledData = await complainSch.find(searchQuery) .sort(sortQuery) .skip(page * size - size) .limit(size) .select(selectQuery) .populate(populateFields) .lean();
+    const totalData = await complainSch.countDocuments(searchQuery);
+
+    pulledData = pulledData.map(complaint => ({
+      ...complaint,
+      is_resolved_by: complaint.resolved_by?.toString() === userId || complaint.created_by?._id?.toString() === userId,
+    }));
+    return otherHelper.paginationSendResponse( res, httpStatus.OK, true, pulledData, "Complain data retrieved successfully", page, size, totalData);
+  } catch (err) {
+    next(err);
+  }
+};
+
+complainController.getAllSalescomplain = async (req, res, next) => {
+  try {
+    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    const userId = req.user.id;
+    searchQuery = { created_by: mongoose.Types.ObjectId(userId) };
+
+    const populateFields = [
+      { path: 'product_id', select: 'name.englishname name.gujaratiname' },
+      { path: 'customer_id', select: 'customer_name  firstname middlename lastname' },
+      { path: 'created_by', select: 'name' },
+      { path: 'Comment.name', select: 'name' },
+    ];
+
+    if (!userId) {
+     return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "Complain not found", null); 
+    }
+
     let pulledData = await complainSch.find(searchQuery) .sort(sortQuery) .skip(page * size - size) .limit(size) .select(selectQuery) .populate(populateFields) .lean();
     const totalData = await complainSch.countDocuments(searchQuery);
 
@@ -107,10 +138,7 @@ complainController.updatecomplain = async (req, res, next) => {
     const { id, comment, ...restData } = req.body;
     const userId = req.user?.id;
 
-    if (!id) {
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, "Complain ID is required", null);
-    }
-
+    if (!id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, "Complain ID is required", null);
 
     let updateQuery = {};
 
