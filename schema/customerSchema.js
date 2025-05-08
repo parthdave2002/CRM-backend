@@ -20,6 +20,7 @@ const customerSchema = new schema({
   village: { type: mongoose.Schema.Types.ObjectId },
   state: { type: mongoose.Schema.Types.ObjectId,  ref: 'State', },
   pincode: { type: String },
+  post_office: { type: String },
   added_at: { type: Date },
   created_by: { type: schema.Types.ObjectId, ref: 'users' },
   updated_at: { type: Date },

@@ -328,7 +328,9 @@ orderController.UpdateOrder = async (req, res, next) => {
         });
       }
     }
-    updatedData.products = updatedProducts;
+    if (updatedData.products) {
+      updatedData.products = updatedProducts;
+    }
     updatedData.total_amount = totalAmount;
     updatedData.updated_at = Date.now();
     const updatedOrder = await orderSch.findByIdAndUpdate(existingOrder._id, { $set: updatedData }, { new: true }).session(session);
