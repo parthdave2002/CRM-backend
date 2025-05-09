@@ -346,7 +346,7 @@ orderController.UpdateOrder = async (req, res, next) => {
 
 orderController.getFilteredOrderList = async (req, res, next) => {
   try {
-    const { page, size, sortQuery, search, startDate, endDate, status } = req.query;
+    const { page, size, sortQuery="-added_at", search, startDate, endDate, status } = req.query;
     const advisorId = req.user?.id;
     const searchQuery = { advisor_name: advisorId,};
     if (status) {  searchQuery.status = status;  }
