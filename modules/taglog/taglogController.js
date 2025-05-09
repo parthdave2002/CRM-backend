@@ -252,22 +252,20 @@ taglogController.AddTaglogCustomer = async (req, res, next) => {
 taglogController.getAllTaglogCustomers = async (req, res, next) => {
   try {
     const customer_id = req.query.customer_id;
-    if (!customer_id) {
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer ID is required', null);
-    }
 
-    if (!mongoose.Types.ObjectId.isValid(customer_id)) {
-      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Customer ID', null);
-    }
+    if (!customer_id)  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer ID is required', null);
+    if (!mongoose.Types.ObjectId.isValid(customer_id))  return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Customer ID', null);
+    
     const customerExists = await customerSch.findById(customer_id);
     if (!customerExists) {
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
     }
-    let { page, size, sortQuery } = otherHelper.parseFilters(req);
+    let { page, size, sortQuery="-created_at"} = otherHelper.parseFilters(req);
 
     const totalData = await taglogCustomerSch.countDocuments({ customer_id });
     const customers = await taglogCustomerSch
       .find({ customer_id })
+      .sort(sortQuery)
       .populate('customer_id', 'firstname middlename lastname')
       .populate('taglog_id', 'taglog_name subtaglog')
       .skip((page- 1) * size)

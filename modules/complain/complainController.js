@@ -63,7 +63,7 @@ complainController.getAllSalescomplain = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
     const userId = req.user.id;
-    searchQuery = { created_by: mongoose.Types.ObjectId(userId) };
+    searchQuery = { created_by: mongoose.Types.ObjectId(userId), resolution :"open" };
 
     const populateFields = [
       { path: 'product_id', select: 'name.englishname name.gujaratiname' },
@@ -72,10 +72,7 @@ complainController.getAllSalescomplain = async (req, res, next) => {
       { path: 'Comment.name', select: 'name' },
     ];
 
-    if (!userId) {
-     return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "Complain not found", null); 
-    }
-
+    if (!userId)  return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "Complain not found", null); 
     let pulledData = await complainSch.find(searchQuery) .sort(sortQuery) .skip(page * size - size) .limit(size) .select(selectQuery) .populate(populateFields) .lean();
     const totalData = await complainSch.countDocuments(searchQuery);
 
