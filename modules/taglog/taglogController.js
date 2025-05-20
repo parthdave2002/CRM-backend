@@ -190,6 +190,7 @@ taglogController.AddTaglogCustomer = async (req, res, next) => {
     if(subtaglog_id && !mongoose.Types.ObjectId.isValid(subtaglog_id)){
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Subtaglog ID', null);
     }
+    req.body.created_at = Date.now();
     const newEntry = new taglogCustomerSch(req.body);
     await newEntry.save();
     return otherHelper.sendResponse(res, httpStatus.OK, true, newEntry, null, 'Customer Taglog added successfully', null);
