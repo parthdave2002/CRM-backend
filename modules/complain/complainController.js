@@ -274,11 +274,11 @@ complainController.getbyid = async (req, res, next) => {
 
     let pulledData = await complainSch .find(query) .skip((page - 1) * size).limit(size).select(selectQuery).populate(populateFields).sort(sortQuery).lean();
     pulledData = pulledData.map(complaint => {
-      const resolvedById = complaint.resolved_by?.toString();
+      const requser = req.user.id
       const createdById = complaint.created_by?._id?.toString() || complaint.created_by?.toString();
       return {
         ...complaint,
-        is_resolved_by: resolvedById === userId || createdById === userId,
+        is_resolved_by:  createdById === requser ? true : false
       };
     });
 

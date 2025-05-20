@@ -209,7 +209,7 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
             await productDetails.save({ new: true }); //
           }
           let subtotal = productDetails.price * product.quantity;
-          subtotal -= productDetails.discount;
+          subtotal -= (productDetails.discount  * product.quantity); 
           const sGstAmount = subtotal * (productDetails.s_gst / 100);
           const cGstAmount = subtotal * (productDetails.c_gst / 100);
           const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
@@ -313,7 +313,7 @@ orderController.UpdateOrder = async (req, res, next) => {
         }
         const { price, discount, s_gst, c_gst, batch_no, hsn_code } = productDetails;
         let subtotal = productDetails.price * product.quantity;
-        subtotal -= productDetails.discount;
+        subtotal -= (productDetails.discount  * product.quantity); 
         const sGstAmount = subtotal * (productDetails.s_gst / 100);
         const cGstAmount = subtotal * (productDetails.c_gst / 100);
         const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
