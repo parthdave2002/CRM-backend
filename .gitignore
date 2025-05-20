@@ -11,7 +11,7 @@ yarn.lock
 npm-debug.log
 .idea
 config/
-# env file
+env file
 .env
 
 # files
