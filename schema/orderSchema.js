@@ -20,6 +20,7 @@ const orderSchema = new schema({
   total_amount: { type: Number, required: true },
   order_type: { type: String, default: 'confirm', enum: ['confirm', 'future'] },
   future_order_date: { type: Date, required: false },
+  coupon: { type: mongoose.Schema.Types.ObjectId, ref: 'coupon' },
   mark_as_done:{type:Boolean},
   status: { type: String, default: 'confirm', required: false, enum: ['confirm', 'cancel', 'return', null] },
   added_at: { type: Date, default: Date.now },

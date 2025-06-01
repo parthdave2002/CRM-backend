@@ -10,11 +10,11 @@ const validations = {};
 const ValidationRules = {
   name_eng: [
     { condition: 'IsEmpty', msg: config.validate.empty },
-    { condition: 'IsLength', msg: config.validate.nameLength, option: { min: 2, max: 15 } }
+    { condition: 'IsLength', msg: config.validate.nameLength, option: { min: 2, max: 50 } }
   ],
   name_guj: [
     { condition: 'IsEmpty', msg: config.validate.empty },
-    { condition: 'IsLength', msg: config.validate.nameLength, option: { min: 2, max: 15 } }
+    { condition: 'IsLength', msg: config.validate.nameLength, option: { min: 2, max: 50 } }
   ],
   email: [
     { condition: 'IsEmpty', msg: config.validate.empty },

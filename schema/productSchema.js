@@ -3,13 +3,15 @@ const schema = mongoose.Schema;
 
 const productSchema = new schema({
   name: {
-    gujaratiname: { type: String, required: true, unique: true , trim: true},
-    englishname: { type: String, required: true, unique: true , trim: true},
+    gujaratiname: { type: String, required: true,  trim: true},
+    englishname: { type: String, required: true,  trim: true},
   },
   tech_name: {
-    gujarati_tech_name: { type: String, required: true, unique: true , trim: true},
-    english_tech_name: { type: String, required: true, unique: true , trim: true},
+    gujarati_tech_name: { type: String, required: true,  trim: true},
+    english_tech_name: { type: String, required: true,  trim: true},
   },
+  crops: [{ type: mongoose.Schema.Types.ObjectId, ref: 'crop', required: true }],
+    isBestSelling: { type: Boolean, required: true, default: false },
   packaging: { type: Number },
   packagingtype: { type: mongoose.Schema.Types.ObjectId,required: true, ref: 'packing-type' },
   price: { type: Number, required: true, default: 0 },

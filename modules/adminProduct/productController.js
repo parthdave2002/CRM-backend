@@ -15,7 +15,8 @@ productController.getAllProductList = async (req, res, next) => {
     const populatedata =[
       { path: 'categories', model: 'categories', select: 'name_eng name_guj' },
       { path: 'company', model: 'company', select: 'name_eng name_guj' },
-      { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }
+      { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' },
+      { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
     ];
 
     if (req.query.id) {
@@ -52,6 +53,20 @@ productController.getAllProductList = async (req, res, next) => {
       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
 
       const formattedResults = searchResults.map(product => ({
+        ...product.toObject(),
+        out_of_stock: product.avl_qty === 0 ? true : false,
+      }));
+
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedResults, ' Search Data found', page, size, formattedResults.length);
+    }
+
+    if (req.query.crop) {
+      searchConditions.push({ crops: req.query.crop });
+      const searchResults = await productSch.find({ crops: req.query.crop, is_deleted: false }).populate(populatedata).exec();
+
+      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+
+      const formattedResults = searchResults.map((product) => ({
         ...product.toObject(),
         out_of_stock: product.avl_qty === 0 ? true : false,
       }));
