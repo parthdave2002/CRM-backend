@@ -209,7 +209,7 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
             await productDetails.save({ new: true }); //
           }
           let subtotal = productDetails.price * product.quantity;
-          subtotal -= (productDetails.discount  * product.quantity); 
+          subtotal -= productDetails.discount * product.quantity;
           const sGstAmount = subtotal * (productDetails.s_gst / 100);
           const cGstAmount = subtotal * (productDetails.c_gst / 100);
           const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
@@ -220,9 +220,22 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
             price,
             discount,
             s_gst,
-            c_gst,batch_no,hsn_code
+            c_gst,
+            batch_no,
+            hsn_code,
           });
         }
+      }
+
+      if (order.order_type === 'confirm' && order.coupon) {
+        const coupon = await couponSch.findOne({ name: order.coupon,   is_active: true,    is_deleted: false  }).session(session);
+        if (!coupon) {
+          await session.abortTransaction();
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid or inactive coupon', null);
+        }
+
+        totalAmount -= coupon.amount;
+        order.coupon = coupon._id;
       }
       order.products = updatedProducts;
       order.total_amount = totalAmount;
@@ -313,7 +326,7 @@ orderController.UpdateOrder = async (req, res, next) => {
         }
         const { price, discount, s_gst, c_gst, batch_no, hsn_code } = productDetails;
         let subtotal = productDetails.price * product.quantity;
-        subtotal -= (productDetails.discount  * product.quantity); 
+        subtotal -= productDetails.discount * product.quantity;
         const sGstAmount = subtotal * (productDetails.s_gst / 100);
         const cGstAmount = subtotal * (productDetails.c_gst / 100);
         const totalPriceForProduct = subtotal + sGstAmount + cGstAmount;
@@ -324,12 +337,24 @@ orderController.UpdateOrder = async (req, res, next) => {
           price,
           discount,
           s_gst,
-          c_gst,hsn_code,batch_no
+          c_gst,
+          hsn_code,
+          batch_no,
         });
       }
     }
     if (updatedData.products) {
       updatedData.products = updatedProducts;
+    }
+    if (updatedData.order_type === 'confirm' && updatedData.coupon) {
+      const coupon = await couponSch .findOne({  name: updatedData.coupon,   is_active: true,  is_deleted: false  }) .session(session);
+      if (!coupon) {
+        await session.abortTransaction();
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid or inactive coupon', null);
+      }
+
+      totalAmount -= coupon.amount;
+      updatedData.coupon = coupon._id;
     }
     updatedData.total_amount = totalAmount;
     updatedData.updated_at = Date.now();
