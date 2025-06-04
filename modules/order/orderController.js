@@ -3,7 +3,8 @@ const otherHelper = require('../../helper/others.helper');
 const orderSch = require('../../schema/orderSchema');
 const productSch = require('../../schema/productSchema');
 const complainSch = require('../../schema/complainSchema');
-const stateSch = require('../../schema/locationSchema')
+const stateSch = require('../../schema/locationSchema');
+const couponSch = require("../../schema/couponSchema")
 const orderController = {};
 
 orderController.getAllOrderList = async (req, res, next) => {
@@ -234,7 +235,11 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid or inactive coupon', null);
         }
 
-        totalAmount -= coupon.amount;
+        if (coupon.amount > totalAmount) {
+          totalAmount = 0;
+        } else {
+          totalAmount -= coupon.amount;
+        }
         order.coupon = coupon._id;
       }
       order.products = updatedProducts;
@@ -347,13 +352,18 @@ orderController.UpdateOrder = async (req, res, next) => {
       updatedData.products = updatedProducts;
     }
     if (updatedData.order_type === 'confirm' && updatedData.coupon) {
-      const coupon = await couponSch .findOne({  name: updatedData.coupon,   is_active: true,  is_deleted: false  }) .session(session);
+      const coupon = await couponSch.findOne({  name: updatedData.coupon,   is_active: true,  is_deleted: false  }) .session(session);
       if (!coupon) {
         await session.abortTransaction();
         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid or inactive coupon', null);
       }
 
-      totalAmount -= coupon.amount;
+      
+      if (coupon.amount > totalAmount) {
+          totalAmount = 0;
+        } else {
+          totalAmount -= coupon.amount;
+        }
       updatedData.coupon = coupon._id;
     }
     updatedData.total_amount = totalAmount;
