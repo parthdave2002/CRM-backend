@@ -20,6 +20,7 @@ orderController.getAllOrderList = async (req, res, next) => {
         populate: [{   path: 'state', model: 'State', select: 'name' },],
       },
       { path: 'advisor_name', model: 'users', select: 'name' },
+      { path: 'coupon', model: 'coupon' },
     ];
 
     if (req.query.id && req.query.customer_id && req.query.user_id) {
@@ -38,7 +39,7 @@ orderController.getAllOrderList = async (req, res, next) => {
     } else if (req.query.id && req.query.user_id) {
       searchQuery = { _id: req.query.id, advisor_name: req.query.user_id };
     } else if (req.query.id) {
-      selectQuery = 'order_id order_type products customer advisor_name total_amount status added_at updated_at';
+      selectQuery = 'order_id order_type products customer coupon  advisor_name total_amount status added_at updated_at';
       const orderId = req.query.id;
       searchQuery = { _id: orderId };
     } else if (req.query.user_id) {
@@ -52,6 +53,7 @@ orderController.getAllOrderList = async (req, res, next) => {
       populate = [
         { path: 'customer', model: 'customer', select: 'firstname middlename lastname' },
         { path: 'advisor_name', model: 'users', select: 'name' },
+          { path: 'coupon', model: 'coupon' },
       ];
     }
 
@@ -61,14 +63,13 @@ orderController.getAllOrderList = async (req, res, next) => {
     }
 
     const pulledData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-
     let finalData = pulledData.data;
 
     if (req.query.id || req.query.customer_id) {
       finalData = await Promise.all(
         pulledData.data.map(async (order) => {
           const cust = order.customer;
-          if (!cust && !cust.state) {
+          if (!cust && !cust?.state) {
             return {
               ...order.toObject(),
               customer: {
