@@ -208,7 +208,11 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
               await session.abortTransaction();
               return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Insufficient stock available', null);
             }
-            await productDetails.save({ new: true }); //
+            // await productDetails.save({ new: true }); //
+            await productSch.updateOne(
+            { _id: product.id },
+            { $set: { avl_qty: productDetails.avl_qty } }
+          ).session(session);
           }
           let subtotal = productDetails.price * product.quantity;
           subtotal -= productDetails.discount * product.quantity;
@@ -328,7 +332,11 @@ orderController.UpdateOrder = async (req, res, next) => {
             await session.abortTransaction();
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Insufficient stock available', null);
           }
-          await productDetails.save({ new: true }); //
+          // await productDetails.save({ new: true }); 
+          await productSch.updateOne(
+            { _id: product.id },
+            { $set: { avl_qty: productDetails.avl_qty } }
+          ).session(session);
         }
         const { price, discount, s_gst, c_gst, batch_no, hsn_code } = productDetails;
         let subtotal = productDetails.price * product.quantity;
