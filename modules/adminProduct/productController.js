@@ -92,7 +92,7 @@ productController.AddProductData = async (req, res, next) => {
     if (req.files) {
       Product.product_pics = req.files.map(file => file.filename);
     }
-    if (typeof Product.description === "string") {
+    if (Product.description && typeof Product.description === "string") {
       try {
         Product.description = JSON.parse(Product.description);
       } catch (error) {
@@ -100,6 +100,13 @@ productController.AddProductData = async (req, res, next) => {
       }
     }
 
+   if (Product.crops && typeof Product.crops === 'string') {
+      try {
+        Product.crops = JSON.parse(Product.crops);
+      } catch (error) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Crops format', null);
+      }
+    }
     if (!Array.isArray(Product.description)) {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, "Description must be an array", null);
     }
@@ -110,7 +117,7 @@ productController.AddProductData = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Product updated successfully ", null);
     } else {
 
-        const existingProduct = await productSch.findOne({ name: Product.name });
+        const existingProduct = await productSch.findOne({ name: Product.name,packing:Product.packing,packing_type:Product.packing_type });
         if(existingProduct){
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Product is already exist ", null);
         }
@@ -195,6 +202,25 @@ productController.UpdateProductData = async (req, res, next) => {
 
       updatedData.product_pics = newImages;
     }
+    if (updatedData.description && typeof updatedData.description === "string") {
+      try {
+        updatedData.description = JSON.parse(updatedData.description);
+      } catch (error) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, "Invalid description format", null);
+      }
+    }
+    if (updatedData.crops && typeof updatedData.crops === 'string') {
+      try {
+        updatedData.crops = JSON.parse(updatedData.crops);
+      } catch (error) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Crops format', null);
+      }
+    }
+
+      const existingProducts = await productSch.findOne({ name: updatedData.name,packing:updatedData.packing,packing_type:updatedData.packing_type });
+        if(existingProducts){
+            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Product is already exist ", null);
+        }
 
     const updatedProduct = await productSch.findByIdAndUpdate(
       productId,

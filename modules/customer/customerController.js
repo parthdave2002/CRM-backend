@@ -93,8 +93,25 @@ customerController.AddCustomerData = async (req, res, next) => {
       customerData.created_by = req.user.id;
       customerData.added_at = new Date();
       const newCustomer = new customerSch(customerData);
-      await newCustomer.save();
-      return otherHelper.sendResponse(res, httpStatus.OK, true, newCustomer, null, 'Customer Created successfully', null);
+      (await newCustomer.save()).populate([{ path: 'crops', model: 'crop', select: 'name_eng name_guj'}]);
+      
+const populatedCustomer = await customerSch.findById(newCustomer._id)
+  .populate({ path: 'crops', select: 'name_eng name_guj' });
+      const populateData = [populatedCustomer];
+      const stateData = await stateSch.find({}); 
+      const enrichedData = populateData.map(cust => {
+      const districtName = findNameFromState(stateData, cust.district, 'district');
+      const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
+      const villageName = findNameFromState(stateData, cust.village, 'village');
+      return {
+        ...cust.toObject(),
+        district_name: districtName,
+        taluka_name: talukaName,
+        village_name: villageName
+      };
+    });
+
+      return otherHelper.sendResponse(res, httpStatus.OK, true, enrichedData, null, 'Customer Created successfully', null);
     }
   } catch (err) {
     next(err);
