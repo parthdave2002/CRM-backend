@@ -197,7 +197,7 @@ userController.Login = async (req, res, next) => {
     const user = await userSch.findOne({ email: email });
     if (!user) {
       errors.email = "User email not found";
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, errors, errors.email, null);
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, errors, errors.email, null);
     }
 
     if (!user.is_active) {

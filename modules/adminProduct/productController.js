@@ -117,7 +117,7 @@ productController.AddProductData = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Product updated successfully ", null);
     } else {
 
-        const existingProduct = await productSch.findOne({ name: Product.name,packing:Product.packing,packing_type:Product.packing_type });
+        const existingProduct = await productSch.findOne({ name: Product.name,packing:Product.packing,packing_type:Product.packagingtype  });
         if(existingProduct){
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Product is already exist ", null);
         }
@@ -217,7 +217,7 @@ productController.UpdateProductData = async (req, res, next) => {
       }
     }
 
-      const existingProducts = await productSch.findOne({ name: updatedData.name,packing:updatedData.packing,packing_type:updatedData.packing_type });
+      const existingProducts = await productSch.findOne({ name: updatedData.name,packing:updatedData.packing,packing_type:updatedData.packagingtype  });
         if(existingProducts){
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Product is already exist ", null);
         }
