@@ -8,11 +8,90 @@ const fs = require('fs');
 
 const productController = {};
 
+// productController.getAllProductList = async (req, res, next) => {
+//   try {
+//     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+
+//     const populatedata =[
+//       { path: 'categories', model: 'categories', select: 'name_eng name_guj' },
+//       { path: 'company', model: 'company', select: 'name_eng name_guj' },
+//       { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' },
+//       { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
+//     ];
+
+//     if (req.query.id) {
+//       const user = await productSch.findById(req.query.id).populate(populatedata);
+//       if (!user) {
+//         return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Product not found', null);
+//       }
+//       const responseData = {
+//         ...user.toObject(),
+//         out_of_stock: user.avl_qty === 0 ? true : false,
+//       };
+//       return otherHelper.sendResponse( res,httpStatus.OK, true, responseData, null,user.avl_qty === 0 ? 'Out of Stock' : 'Product data found', null
+//       );
+//     }  
+//     searchQuery = { ...searchQuery, is_deleted: false };
+    
+//     if (req.query.search && req.query.search !== 'null') {
+//       const regex = { $regex: req.query.search, $options: 'i' };
+
+//       const companyIds = await companySch.find({
+//         $or: [{ name_eng: regex }, { name_guj: regex }],
+//       }).select('_id');
+
+//       const searchResults = await productSch.find({
+//         $or: [
+//           { 'name.englishname': regex },
+//           { 'name.gujaratiname': regex },
+//           { 'tech_name.english_tech_name': regex },
+//           { 'tech_name.gujarati_tech_name': regex },
+//           { company: { $in: companyIds.map(c => c._id) } }, 
+//         ],
+//       }).populate(populatedata).exec();
+
+//       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+
+//       const formattedResults = searchResults.map(product => ({
+//         ...product.toObject(),
+//         out_of_stock: product.avl_qty === 0 ? true : false,
+//       }));
+
+//       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedResults, ' Search Data found', page, size, formattedResults.length);
+//     }
+
+//     if (req.query.crop) {
+//       searchConditions.push({ crops: req.query.crop });
+//       const searchResults = await productSch.find({ crops: req.query.crop, is_deleted: false }).populate(populatedata).exec();
+
+//       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+
+//       const formattedResults = searchResults.map((product) => ({
+//         ...product.toObject(),
+//         out_of_stock: product.avl_qty === 0 ? true : false,
+//       }));
+
+//       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedResults, ' Search Data found', page, size, formattedResults.length);
+//     }
+//     const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populatedata);
+
+//     const formattedProducts = pulledData.data.map(product => ({
+//       ...product.toObject(),
+//       out_of_stock: product.avl_qty === 0 ? true : false,
+//     }));
+
+//     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedProducts, 'Product Data get successfully', page, size, pulledData.totalData);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+
 productController.getAllProductList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
 
-    const populatedata =[
+    const populatedata = [
       { path: 'categories', model: 'categories', select: 'name_eng name_guj' },
       { path: 'company', model: 'company', select: 'name_eng name_guj' },
       { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' },
@@ -22,37 +101,51 @@ productController.getAllProductList = async (req, res, next) => {
     if (req.query.id) {
       const user = await productSch.findById(req.query.id).populate(populatedata);
       if (!user) {
-        return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Product not found', null);
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
       }
+      const similarProduct = await productSch.find({ categories: user.categories }).populate(populatedata).limit(8);
       const responseData = {
         ...user.toObject(),
         out_of_stock: user.avl_qty === 0 ? true : false,
+        similarProduct,
       };
-      return otherHelper.sendResponse( res,httpStatus.OK, true, responseData, null,user.avl_qty === 0 ? 'Out of Stock' : 'Product data found', null
-      );
-    }  
+      return otherHelper.sendResponse(res, httpStatus.OK, true, responseData, null, user.avl_qty === 0 ? 'Out of Stock' : 'Product data found', null);
+    }
+
+    if (req.query.category) {
+      const user = await productSch.find({ categories: req.query.category }).populate(populatedata);
+      if (!user) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
+      }
+
+      const formattedResults = user.map((product) => ({
+        ...product.toObject(),
+        out_of_stock: product.avl_qty === 0 ? true : false,
+      }));
+
+      return otherHelper.sendResponse(res, httpStatus.OK, true, formattedResults, null, user.avl_qty === 0 ? 'Out of Stock' : 'Product data found', null);
+    }
     searchQuery = { ...searchQuery, is_deleted: false };
-    
+
     if (req.query.search && req.query.search !== 'null') {
       const regex = { $regex: req.query.search, $options: 'i' };
 
-      const companyIds = await companySch.find({
-        $or: [{ name_eng: regex }, { name_guj: regex }],
-      }).select('_id');
+      const companyIds = await companySch
+        .find({
+          $or: [{ name_eng: regex }, { name_guj: regex }],
+        })
+        .select('_id');
 
-      const searchResults = await productSch.find({
-        $or: [
-          { 'name.englishname': regex },
-          { 'name.gujaratiname': regex },
-          { 'tech_name.english_tech_name': regex },
-          { 'tech_name.gujarati_tech_name': regex },
-          { company: { $in: companyIds.map(c => c._id) } }, 
-        ],
-      }).populate(populatedata).exec();
+      const searchResults = await productSch
+        .find({
+          $or: [{ 'name.englishname': regex }, { 'name.gujaratiname': regex }, { 'tech_name.english_tech_name': regex }, { 'tech_name.gujarati_tech_name': regex }, { company: { $in: companyIds.map((c) => c._id) } }],
+        })
+        .populate(populatedata)
+        .exec();
 
       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
 
-      const formattedResults = searchResults.map(product => ({
+      const formattedResults = searchResults.map((product) => ({
         ...product.toObject(),
         out_of_stock: product.avl_qty === 0 ? true : false,
       }));
@@ -75,7 +168,7 @@ productController.getAllProductList = async (req, res, next) => {
     }
     const pulledData = await otherHelper.getQuerySendResponse(productSch, page, size, sortQuery, searchQuery, selectQuery, next, populatedata);
 
-    const formattedProducts = pulledData.data.map(product => ({
+    const formattedProducts = pulledData.data.map((product) => ({
       ...product.toObject(),
       out_of_stock: product.avl_qty === 0 ? true : false,
     }));
@@ -117,7 +210,8 @@ productController.AddProductData = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null,  "Product updated successfully ", null);
     } else {
 
-        const existingProduct = await productSch.findOne({ name: Product.name,packing:Product.packing,packing_type:Product.packagingtype  });
+        // const existingProduct = await productSch.findOne({ name: Product.name,packing:Product.packing,packing_type:Product.packagingtype  });
+            const existingProduct = await productSch.findOne({ name: Product.name, packaging: Product.packaging, packagingtype: Product.packagingtype });
         if(existingProduct){
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Product is already exist ", null);
         }
@@ -181,7 +275,7 @@ productController.UpdateProductData = async (req, res, next) => {
     const productId = new mongoose.Types.ObjectId(id);
     const existingProduct = await productSch.findById(productId);
     if (!existingProduct) {
-      return otherHelper.sendResponse(res, 404, false, null, null, "Product not found", null);
+      return otherHelper.sendResponse(res, 400, false, null, null, "Product not found", null);
     }
 
     if (req.files && req.files.length > 0) {
@@ -217,7 +311,8 @@ productController.UpdateProductData = async (req, res, next) => {
       }
     }
 
-      const existingProducts = await productSch.findOne({ name: updatedData.name,packing:updatedData.packing,packing_type:updatedData.packagingtype  });
+      // const existingProducts = await productSch.findOne({ name: updatedData.name,packing:updatedData.packing,packing_type:updatedData.packagingtype  });
+          const existingProducts = await productSch.findOne({ name: updatedData.name, packaging: updatedData.packaging, packagingtype: updatedData.packagingtype });
         if(existingProducts){
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Product is already exist ", null);
         }
