@@ -19,6 +19,12 @@ companyController.GetCompanylist = async (req, res, next) => {
       const user = await companySch.findById(req.query.id);
       return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Company data get successfully', null);
     }
+
+    if (req.query.all) {
+        const company = await companySch.find(searchQuery);
+        return otherHelper.sendResponse(res, httpStatus.OK, true, company, null, 'Company data get successfully', null);
+    }
+
     if (req.query.search && req.query.search !== 'null') {
       const searchResults = await companySch.find({
         $or: [{ name_eng: { $regex: req.query.search, $options: 'i' } }],

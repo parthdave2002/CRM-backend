@@ -34,7 +34,7 @@ userController.GetAllUser = async (req, res, next) => {
   try {
    
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    searchQuery = { ...searchQuery, is_deleted: false };
+    searchQuery = { ...searchQuery, is_deleted: false, role: { $ne: '67b388a7d593423df0e24295' }  };
     selectQuery = 'name email password gender mobile_no date_of_joining date_of_birth address emergency_mobile_no emergency_contact_person added_at role pan_card bank_passbook aadhar_card user_id is_active user_pic';
     populate = [{ path: 'role',  model: 'roles', select: 'role_title' }];
 
