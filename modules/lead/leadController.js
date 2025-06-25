@@ -1,13 +1,14 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const leadSch = require('../../schema/leadSchema');
+const productSch = require("../../schema/productSchema")
 const leadController = {};
 
 leadController.getAlllead = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req);
     searchQuery = { ...searchQuery };
-
+    populate = [{ path: 'products.id', model: 'product', populate: [{ path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }] }];
     if (req.query.id) {
       const lead = await leadSch.findById(req.query.id);
       return otherHelper.sendResponse(res, httpStatus.OK, true, lead, null, 'Lead data found', null);
@@ -48,6 +49,22 @@ leadController.addlead = async (req, res, next) => {
       const update = await leadSch.findByIdAndUpdate(req.body.id, { comment: req.body.comment, is_deleted: true }, { new: true });
       return otherHelper.sendResponse(res, httpStatus.OK, true, update, null, 'Lead updated successfully ', null);
     } else {
+      if (req.body.type && req.body.type === 'order') {
+        if (req.body.products && Array.isArray(req.body.products)) {
+          for (const product of req.body.products) {
+            const productDetails = await productSch.findById(product._id);
+            if (!productDetails) {
+              return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Products not found for Order', null);
+            }
+
+            if (product.quantity > productDetails.avl_qty) {
+              return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
+            }
+          }
+        } else {
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product required for order type lead', null);
+        }
+      }
       const lead = new leadSch(req.body);
       await lead.save();
       return otherHelper.sendResponse(res, httpStatus.OK, true, lead, null, 'Lead  created successfully', null);

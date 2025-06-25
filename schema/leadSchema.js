@@ -6,7 +6,12 @@ const leadSchema = new schema({
   mobile_number: { type: Number },
   email: { type: String },
   comment: { type: String },
-  order_product : {  type :String },
+  products: [
+    {
+      id: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+      quantity: { type: Number, required: true, default: 1 },
+    },
+  ],
   user_type: { type: String, enum: ['farmer', 'job_application', 'dealer'] },
   type: { type: String, required: true, enum: ['contactus', 'help', 'order'] },
   status: { type: String, default: 'pending', required: false, enum: ['pending', 'completed'] },

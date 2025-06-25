@@ -35,6 +35,10 @@ customerController.getAllCustomerList = async (req, res, next) => {
     if (req.query.id) {
       searchQuery = { _id: req.query.id };
     }
+
+    if (req.query.getByUser) {
+      created_by = { _id: req.query.id };
+    }
     const pulledData = await otherHelper.getQuerySendResponse(customerSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     const stateData = await stateSch.find({}); 
     const enrichedData = pulledData.data.map(cust => {

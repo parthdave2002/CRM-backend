@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const productSch = require('../../schema/productSchema');
 const companySch = require('../../schema/companySchema');
+const categorySch  = require('../../schema/adminCategorySchema');
 const mongoose = require("mongoose");
 const path = require('path');
 const fs = require('fs');
@@ -86,7 +87,6 @@ const productController = {};
 //   }
 // };
 
-
 productController.getAllProductList = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
@@ -101,7 +101,7 @@ productController.getAllProductList = async (req, res, next) => {
     if (req.query.id) {
       const user = await productSch.findById(req.query.id).populate(populatedata);
       if (!user) {
-        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
+        return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Product not found', null);
       }
       const similarProduct = await productSch.find({ categories: user.categories }).populate(populatedata).limit(8);
       const responseData = {
@@ -113,22 +113,32 @@ productController.getAllProductList = async (req, res, next) => {
     }
 
     if (req.query.category) {
-      const user = await productSch.find({ categories: req.query.category }).populate(populatedata);
-      if (!user) {
-        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found', null);
+      const categoryWiseProducts = await productSch.find({ categories: req.query.category }).populate(populatedata);
+      if (!categoryWiseProducts) {
+        return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Product not found', null);
       }
-
-      const formattedResults = user.map((product) => ({
+      const formattedResults = categoryWiseProducts.map((product) => ({
         ...product.toObject(),
         out_of_stock: product.avl_qty === 0 ? true : false,
       }));
 
-      return otherHelper.sendResponse(res, httpStatus.OK, true, formattedResults, null, user.avl_qty === 0 ? 'Out of Stock' : 'Product data found', null);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, formattedResults, null, 'Product data found', null);
     }
     searchQuery = { ...searchQuery, is_deleted: false };
 
     if (req.query.search && req.query.search !== 'null') {
       const regex = { $regex: req.query.search, $options: 'i' };
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(req.query.search);
+
+      let categoryFilter = [];
+
+      if (isValidObjectId) {
+        categoryFilter.push({ _id: mongoose.Types.ObjectId(req.query.search) });
+      } else {
+        categoryFilter.push({ name_eng: regex }, { name_guj: regex });
+      }
+
+      const categoryIds = await categorySch.find({ $or: categoryFilter }).select('_id');
 
       const companyIds = await companySch
         .find({
@@ -138,7 +148,7 @@ productController.getAllProductList = async (req, res, next) => {
 
       const searchResults = await productSch
         .find({
-          $or: [{ 'name.englishname': regex }, { 'name.gujaratiname': regex }, { 'tech_name.english_tech_name': regex }, { 'tech_name.gujarati_tech_name': regex }, { company: { $in: companyIds.map((c) => c._id) } }],
+          $or: [{ 'name.englishname': regex }, { 'name.gujaratiname': regex }, { 'tech_name.english_tech_name': regex }, { 'tech_name.gujarati_tech_name': regex }, { company: { $in: companyIds.map((c) => c._id) } }, { categories: { $in: categoryIds.map((c) => c._id) } }],
         })
         .populate(populatedata)
         .exec();
@@ -311,12 +321,12 @@ productController.UpdateProductData = async (req, res, next) => {
       }
     }
 
-      // const existingProducts = await productSch.findOne({ name: updatedData.name,packing:updatedData.packing,packing_type:updatedData.packagingtype  });
-          const existingProducts = await productSch.findOne({ name: updatedData.name, packaging: updatedData.packaging, packagingtype: updatedData.packagingtype });
-        if(existingProducts){
-            return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null,  "Product is already exist ", null);
-        }
-
+    if (existingProduct.name.englishname !== updatedData.name.englishname || existingProduct.name.gujaratiname !== updatedData.name.gujaratiname || existingProduct.packaging.toString() !== updatedData.packaging.toString() || existingProduct.packagingtype.toString() !== updatedData.packagingtype.toString()) {
+      const existingProducts = await productSch.findOne({ name: updatedData.name, packaging: updatedData.packaging, packagingtype: updatedData.packagingtype });
+      if (existingProducts) {
+        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product is already exist ', null);
+      }
+    }
     const updatedProduct = await productSch.findByIdAndUpdate(
       productId,
       { $set: updatedData },
@@ -328,6 +338,5 @@ productController.UpdateProductData = async (req, res, next) => {
     next(err);
   }
 };
-
 
 module.exports = productController;
