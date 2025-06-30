@@ -48,6 +48,8 @@ orderController.getAllOrderList = async (req, res, next) => {
     } else if (req.query.customer_id) {
       const customerId = req.query.customer_id;
       searchQuery = { customer: customerId };
+    } else if (req.query.returnOrder) {
+      searchQuery = { status: 'return',mark_as_return: false };
     } else {
       selectQuery = 'order_id order_type  customer advisor_name total_amount status added_at';
       populate = [
@@ -115,6 +117,47 @@ orderController.getAllOrderList = async (req, res, next) => {
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, finalData, 'Order Data retrieved successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);
+  }
+};
+
+orderController.ReturnProductAdd = async (req, res, next) => {
+  const session = await orderSch.startSession();
+  let message;
+  try {
+    session.startTransaction();
+    const id = req.body.order_id || req.query.order_id;
+    if (!id) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order ID is required for update', null);
+    }
+    const existingOrder = await orderSch.findOne({ order_id: id });
+    if (!existingOrder) {
+      await session.abortTransaction();
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Order not found', null);
+    }
+    let updatedData = {};
+    if (existingOrder.products && Array.isArray(existingOrder.products)) {
+      for (const product of existingOrder.products) {
+        const productDetails = await productSch.findById(product.id).session(session);
+        if (!productDetails) {
+          await session.abortTransaction();
+          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Product not found for Order', null);
+        }
+        if (existingOrder && existingOrder.status === 'return' && existingOrder.toObject().mark_as_return == false) {
+          productDetails.avl_qty += product.quantity;
+          await productSch.updateOne({ _id: product.id }, { $set: { avl_qty: productDetails.avl_qty } }).session(session);
+        }
+      }
+      updatedData.updated_at = Date.now();
+      updatedData.mark_as_return = true;
+      const updatedOrder = await orderSch.findByIdAndUpdate(existingOrder._id, { $set: updatedData }, { new: true }).session(session);
+      await session.commitTransaction();
+      return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, message || 'Order updated successfully', null);
+    }
+  } catch (err) {
+    await session.abortTransaction();
+    next(err);
+  } finally {
+    session.endSession();
   }
 };
 

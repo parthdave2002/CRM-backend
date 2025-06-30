@@ -8,7 +8,8 @@ leadController.getAlllead = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req);
     searchQuery = { ...searchQuery };
-    populate = [{ path: 'products.id', model: 'product', populate: [{ path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }] }];
+    populate = [        { path: 'products.id', model: 'product', populate: [  { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }], },
+];
     if (req.query.id) {
       const lead = await leadSch.findById(req.query.id);
       return otherHelper.sendResponse(res, httpStatus.OK, true, lead, null, 'Lead data found', null);

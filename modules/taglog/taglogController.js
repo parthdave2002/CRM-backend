@@ -191,6 +191,7 @@ taglogController.AddTaglogCustomer = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Subtaglog ID', null);
     }
     req.body.created_at = Date.now();
+    req.body.added_by = req.user.id
     const newEntry = new taglogCustomerSch(req.body);
     await newEntry.save();
     return otherHelper.sendResponse(res, httpStatus.OK, true, newEntry, null, 'Customer Taglog added successfully', null);
@@ -267,8 +268,9 @@ taglogController.getAllTaglogCustomers = async (req, res, next) => {
     const customers = await taglogCustomerSch
       .find({ customer_id })
       .sort(sortQuery)
-      .populate('customer_id', 'firstname middlename lastname')
-      .populate('taglog_id', 'taglog_name subtaglog')
+      .populate('customer_id', 'firstname middlename lastname ')
+      .populate('taglog_id', 'taglog_name subtaglog ')
+      .populate('added_by', 'name')
       .skip((page- 1) * size)
       .limit(size)
       .lean();
@@ -295,6 +297,7 @@ taglogController.getAllTaglogCustomers = async (req, res, next) => {
         comment: item.comment,
         created_by: item.created_by,
         created_at: item.created_at,
+        added_by : item.added_by
       };
     });
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, enrichedCustomers, 'Customer Taglogs fetched successfully', page, size, totalData);
