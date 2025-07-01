@@ -125,14 +125,14 @@ orderController.ReturnProductAdd = async (req, res, next) => {
   let message;
   try {
     session.startTransaction();
-    const id = req.body.order_id || req.query.order_id;
+    const id = req.params.order_id || req.query.order_id;
     if (!id) {
       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order ID is required for update', null);
     }
-    const existingOrder = await orderSch.findOne({ order_id: id });
+    const existingOrder = await orderSch.findOne({ _id: id });
     if (!existingOrder) {
       await session.abortTransaction();
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Order not found', null);
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order not found', null);
     }
     let updatedData = {};
     if (existingOrder.products && Array.isArray(existingOrder.products)) {

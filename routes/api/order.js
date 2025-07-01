@@ -5,7 +5,7 @@ const OrderController = require('../../modules/order/orderController');
 const { authentication, authorization } = require('../../middleware/auth.middleware');
 
 router.get('/get-order',authentication,authorization("Order"), OrderController.getAllOrderList);
-router.patch('/add-return-product', authentication, OrderController.ReturnProductAdd);
+router.get('/add-return-product', authentication, OrderController.ReturnProductAdd);
 router.post('/add-order',authentication,authorization("Order"), OrderController.AddOrUpdateOrderData);
 router.put('/update-order',authentication,authorization("Order"), OrderController.UpdateOrder);
 router.delete('/remove-order',authentication,authorization("Order"), OrderController.DeleteOrderData);
