@@ -58,4 +58,7 @@ router.use('/sales-executive', salesExcutivedata);
 const Statedata = require('./api/location');
 router.use('/location', Statedata);
 
+const Reportdata = require('./api/report');
+router.use('/report', Reportdata);
+
 module.exports = router;

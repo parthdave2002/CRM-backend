@@ -155,7 +155,7 @@ salesExecutiveController.GetSalesExecutiveDashboard = async (req, res, next) => 
     );
 
    const totalFarmer = await customerSch.countDocuments({ created_by: loggedInUserId });
-    const customers = await customerSch.find({ created_by: loggedInUserId }).sort({ added_at: -1 }).limit(8).select('customer_name firstname lastname middlename mobile_number');
+    const customers = await customerSch.find({ created_by: loggedInUserId }).sort({ added_at: -1 }).select('customer_name firstname lastname middlename mobile_number');
     const complain = await complainSch.find({ created_by: loggedInUserId }).sort({ date: -1 }).limit(3).select('complain_id  title  customer_id  created_at  priority').populate(populate);
     let response = totalMetrics.reduce(
       (acc, { period, totalRevenue, totalConfirmedOrders, totalReturnOrders, totalFutureOrders }) => {
