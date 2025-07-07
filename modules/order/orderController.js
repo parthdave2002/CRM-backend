@@ -17,7 +17,7 @@ orderController.getAllOrderList = async (req, res, next) => {
         path: 'customer',
         model: 'customer',
         select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name',
-        populate: [{   path: 'state', model: 'State', select: 'name' },],
+        populate: [{ path: 'state', model: 'State', select: 'name' }],
       },
       { path: 'advisor_name', model: 'users', select: 'name' },
       { path: 'coupon', model: 'coupon' },
@@ -53,7 +53,7 @@ orderController.getAllOrderList = async (req, res, next) => {
     } else {
       selectQuery = 'order_id order_type  customer advisor_name total_amount status added_at';
       populate = [
-        { path: 'customer', model: 'customer', select: 'firstname middlename lastname' },
+        { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode post_office village vaillage_name  state taluka taluka_name district district_name' },
         { path: 'advisor_name', model: 'users', select: 'name' },
           { path: 'coupon', model: 'coupon' },
       ];
@@ -67,7 +67,7 @@ orderController.getAllOrderList = async (req, res, next) => {
     const pulledData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     let finalData = pulledData.data;
 
-    if (req.query.id || req.query.customer_id) {
+    // if (req.query.id || req.query.customer_id) {
       finalData = await Promise.all(
         pulledData.data.map(async (order) => {
           const cust = order.customer;
@@ -112,8 +112,8 @@ orderController.getAllOrderList = async (req, res, next) => {
           }
         }),
       );
-    }
-
+    // }
+console.log('-------------------',finalData)
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, finalData, 'Order Data retrieved successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);
@@ -328,10 +328,12 @@ orderController.UpdateOrder = async (req, res, next) => {
       sevenDaysAgo.setDate(today.getDate() - 7);
 
       if (updatedData.status === 'return' && existingOrder.status === 'confirm') {
-        const addedAtDate = new Date(existingOrder.added_at);
-        if (addedAtDate < sevenDaysAgo) {
-          return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order can not Update to Return due to return policy of 7 days', null);
-        }
+        updatedData.products = [...existingOrder.products];
+      }
+
+      const inputDate = new Date(existingOrder.added_at);
+      if (updatedData.status === 'cancel' && existingOrder.status === 'confirm' && today.getFullYear() === inputDate.getFullYear() && today.getMonth() === inputDate.getMonth() && today.getDate() === inputDate.getDate()) {
+        updatedData.products = [...existingOrder.products];
       }
       message = 'Order place successfully!';
     } else if (updatedData.order_type === 'future') {
@@ -340,7 +342,7 @@ orderController.UpdateOrder = async (req, res, next) => {
         updatedData.mark_as_done = false;
         updatedData.future_order_date = null;
         message = 'Order cancel successfully!';
-      } else if (updatedData.future_order_date && updatedData.status === "null") {
+      } else if (updatedData.future_order_date && updatedData.status === 'null') {
         if (updatedData.future_order_date && new Date(updatedData.future_order_date) <= new Date(existingOrder.future_order_date)) {
           await session.abortTransaction();
           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Extended Future order date must be greater than the existing future order date', null);
@@ -369,17 +371,18 @@ orderController.UpdateOrder = async (req, res, next) => {
           await session.abortTransaction();
           return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Order quantity is more than available quantity', null);
         }
-        if (existingOrder.order_type === 'future' && updatedData.order_type === 'confirm') {
+        if (existingOrder.order_type === 'future' && updatedData.order_type === 'confirm' && updatedData.status !== 'cancel' && updatedData.status !== 'return') {
           productDetails.avl_qty -= product.quantity;
           if (productDetails.avl_qty < 0) {
             await session.abortTransaction();
             return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Insufficient stock available', null);
           }
-          // await productDetails.save({ new: true }); 
-          await productSch.updateOne(
-            { _id: product.id },
-            { $set: { avl_qty: productDetails.avl_qty } }
-          ).session(session);
+          // await productDetails.save({ new: true });
+          await productSch.updateOne({ _id: product.id }, { $set: { avl_qty: productDetails.avl_qty } }).session(session);
+        }
+        if (updatedData.status === 'cancel' && existingOrder.status === 'confirm') {
+          productDetails.avl_qty += product.quantity;
+          await productSch.updateOne({ _id: product.id }, { $set: { avl_qty: productDetails.avl_qty } }).session(session);
         }
         const { price, discount, s_gst, c_gst, batch_no, hsn_code } = productDetails;
         let subtotal = productDetails.price * product.quantity;
@@ -404,24 +407,25 @@ orderController.UpdateOrder = async (req, res, next) => {
       updatedData.products = updatedProducts;
     }
     if (updatedData.order_type === 'confirm' && updatedData.coupon) {
-      const coupon = await couponSch.findOne({  name: updatedData.coupon,   is_active: true,  is_deleted: false  }) .session(session);
+      const coupon = await couponSch.findOne({ name: updatedData.coupon, is_active: true, is_deleted: false }).session(session);
       if (!coupon) {
         await session.abortTransaction();
         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid or inactive coupon', null);
       }
 
-      
       if (coupon.amount > totalAmount) {
-          totalAmount = 0;
-        } else {
-          totalAmount -= coupon.amount;
-        }
+        totalAmount = 0;
+      } else {
+        totalAmount -= coupon.amount;
+      }
       updatedData.coupon = coupon._id;
     }
     updatedData.total_amount = totalAmount;
     updatedData.updated_at = Date.now();
     const updatedOrder = await orderSch.findByIdAndUpdate(existingOrder._id, { $set: updatedData }, { new: true }).session(session);
     await session.commitTransaction();
+    if(updatedData.status === "return") message = "Order return successfully"
+    if(updatedData.status === "cancel") message = "Order cancel successfully"
     return otherHelper.sendResponse(res, httpStatus.OK, true, updatedOrder, null, message || 'Order updated successfully', null);
   } catch (err) {
     await session.abortTransaction();
@@ -452,7 +456,7 @@ orderController.getFilteredOrderList = async (req, res, next) => {
 
     const populate = [
       { path: 'products.id', model: 'product' },
-      { path: 'customer', model: 'customer',  select: 'customer_name firstname middlename lastname',},
+      { path: 'customer', model: 'customer',  select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name',},
       { path: 'advisor_name', model: 'users',   select: 'name'},
     ];
 
@@ -502,7 +506,7 @@ orderController.GetCallBacks = async (req, res, next) => {
           mark_as_done: false,
           future_order_date: { $lt: endDate },
         })
-        .populate([{ path: 'customer', model: 'customer', select: 'customer_name  firstname middlename lastname mobile_number' }]);
+        .populate([{ path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name' }]);
 
       // const ordersWithCounts = await Promise.all(
       //   orders.map(async (order) => {
@@ -537,7 +541,7 @@ orderController.GetCallBacks = async (req, res, next) => {
           order_type: 'future',
           future_order_date: { $gt: today },
         })
-        .populate([{ path: 'customer', model: 'customer', select: 'customer_name  firstname middlename lastname mobile_number' }]);
+        .populate([{ path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name' }]);
 
       // return otherHelper.sendResponse(res, httpStatus.OK, true, orders, null, 'Future Orders retrieved successfully!', null);
     }

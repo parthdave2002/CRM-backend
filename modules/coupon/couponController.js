@@ -21,7 +21,7 @@ couponController.GetCouponList = async (req, res, next) => {
     }
     if (req.query.name) {
       const coupon = await couponSch.findOne({ name: req.query.name, is_active: true, is_deleted: false });
-      console.log(req.query.name,coupon)
+
       if (!coupon) {
         return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Coupon not found', null);
       }

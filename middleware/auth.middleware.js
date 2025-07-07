@@ -23,8 +23,6 @@ authMiddleware.breakcheck = async (req, res, next) => {
     }
 
     const token = authorizationHeader.split(' ')[1];
-    console.log('Bearer token ', token);
-
     const loginLog = await loginLogSch.findOne({ token: token });
     if (loginLog) {
       console.log('User ID:', loginLog.user_id);
