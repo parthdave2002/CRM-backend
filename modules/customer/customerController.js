@@ -220,13 +220,13 @@ customerController.matchNumber = async (req, res, next) => {
     if (number) {
       customer = await customerSch.findOne({ mobile_number: number }).populate(populate);
     } else if (order_id) {
-      let searchOrder = order_id.startsWith("AB-") ? `#${order_id}` : `#AB-${order_id}`;
+      let searchOrder = order_id.startsWith("AB-") ? `${order_id}` : `AB-${order_id}`;
       const order = await orderSch.findOne({ order_id: searchOrder }).select('customer');
       if (order && order.customer) {
         customer = await customerSch.findById(order.customer).populate(populate);
       }
     } else if (complain_id) {
-      let searchComplain = complain_id.startsWith("ABC-") ? `#${complain_id}` : `#ABC-${complain_id}`;
+      let searchComplain = complain_id.startsWith("ABC-") ? `${complain_id}` : `ABC-${complain_id}`;
       const complain = await complainSch.findOne({ complain_id: searchComplain }).select('customer_id');
       if (complain && complain.customer_id) {
         customer = await customerSch.findById(complain.customer_id).populate(populate);

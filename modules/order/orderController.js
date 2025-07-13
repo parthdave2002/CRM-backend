@@ -218,7 +218,7 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
       const today = new Date();
       const todayDate = today.toISOString().slice(2, 10).replace(/-/g, '');
       const lastOrder = await orderSch
-        .findOne({ order_id: new RegExp(`^#AB-${todayDate}`) })
+        .findOne({ order_id: new RegExp(`^AB-${todayDate}`) })
         .sort({ order_id: -1, added_at: -1 })
         .limit(1)
         .session(session);
@@ -229,7 +229,7 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
         orderSuffix = (lastOrderSuffix + 1).toString().padStart(4, '0');
       }
 
-      order.order_id = `#AB-${todayDate}-${orderSuffix}`;
+      order.order_id = `AB-${todayDate}-${orderSuffix}`;
 
       let totalAmount = 0;
       const updatedProducts = [];

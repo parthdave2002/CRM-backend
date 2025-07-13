@@ -99,7 +99,7 @@ complainController.addcomplain = async (req, res, next) => {
     const productIds = Array.isArray(complain.product_id) ? complain.product_id : [complain.product_id];
     const createdComplaints = [];
     const lastComplain = await complainSch.findOne({
-      complain_id: new RegExp(`#ABC-${formattedDate}-`)
+      complain_id: new RegExp(`ABC-${formattedDate}-`)
     }).sort({ complain_id: -1 }).lean();
 
     let dailyComplainCount = lastComplain ? parseInt(lastComplain.complain_id.split('-')[2], 10) + 1 : 1;
@@ -107,7 +107,7 @@ complainController.addcomplain = async (req, res, next) => {
     for (let i = 0; i < productIds.length; i++) {
       const singleComplain = { ...complain };
       singleComplain.product_id = [productIds[i]];
-      singleComplain.complain_id = `#ABC-${formattedDate}-${String(dailyComplainCount++).padStart(4, '0')}`;
+      singleComplain.complain_id = `ABC-${formattedDate}-${String(dailyComplainCount++).padStart(4, '0')}`;
       if (!singleComplain.created_by && req.user) {
         singleComplain.created_by = req.user.id;
       }

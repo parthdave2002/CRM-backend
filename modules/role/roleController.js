@@ -13,7 +13,8 @@ roleController.GetRoles = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10, false);
     selectQuery = 'role_title description is_active is_deleted';
-
+    searchQuery = { ...searchQuery, role_title: { $ne: 'Super Admin' } };
+    
     if (req.query.id) {
       const user = await roleSch.findById(req.query.id);
       return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Role Data found', null);
@@ -21,6 +22,8 @@ roleController.GetRoles = async (req, res, next) => {
   
     if (req.query.search && req.query.search !== 'null') {
       const searchResults = await roleSch.find({
+         is_deleted: false,
+         role_title: { $ne: 'Super Admin' },
         $or: [{ role_title: { $regex: req.query.search, $options: 'i' } }],
       });
       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
@@ -82,29 +85,6 @@ roleController.GetRoleSearch = async (req, res, next) => {
   return otherHelper.sendResponse(res, httpStatus.OK, true, roles, null, roleConfig.roleGet, null, 'Role Not Found');
 };
 // Role Api Code API
-
-
-// Save Access ROle list  Code Start
-// roleController.SaveAccessListFromRole = async (req, res, next) => {
-//   try {
-//     const data = req.body;
-//     console.log("data", data);
-  
-//       if (data) {
-//         const role_id = data.role_id;
-//         await accessSch.findByIdAndUpdate(access.id, { $set: access }, { new: true });
-//       } else {
-//         access.added_by = req.user.id;
-//         const newAccess = new moduleUserAccessSch(access);
-//         await newAccess.save();
-//       }
-
-//       return otherHelper.sendResponse(res, httpStatus.OK, false, access, null, roleConfig.accessSave, null);
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
 
 roleController.GetRolePermission = async (req, res, next) => {
   try {
