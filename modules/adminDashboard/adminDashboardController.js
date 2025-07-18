@@ -5,7 +5,8 @@ const userSch = require('../../schema/userSchema');
 const bugSch = require('../../schema/bugSchema');
 const roleSch = require('../../schema/roleSchema');
 const productSch = require("../../schema/productSchema");
-const orderSch = require("../../schema/orderSchema")
+const orderSch = require("../../schema/orderSchema");
+const complainSch = require("../../schema/complainSchema")
 const customerSch  =require("../../schema/customerSchema");
 const stateSch = require("../../schema/locationSchema")
 
@@ -36,31 +37,31 @@ const getPeriodDates = (period) => {
 // adminDashboardController.getDashboardData = async (req, res, next) => {
 //   try {
 //     const periods = ['daily', 'weekly', 'monthly'];
-//     const products = await productSch
-//       .find({})
-//       .sort({ added_at: -1 })
-//       .limit(5)
-//       .populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }])
-//       .select('name categories avl_qty price hsn_code batch_no added_at');
-//     const users = await userSch.find().sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
+//     const products = await productSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }]).select('name categories avl_qty price hsn_code batch_no added_at'); 
+//     const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
 //     const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted');
-//     const orders = await orderSch
-//       .find()
-//       .sort({ added_at: -1 })
-//       .limit(10)
-//       .select('order_id customer advisor_name total_amount status added_at')
+//     const orders = await orderSch.find().sort({ added_at: -1 }).limit(10).select('order_id customer advisor_name total_amount status added_at')
 //       .populate([
 //         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
 //         { path: 'advisor_name', model: 'users', select: 'name' },
 //       ]);
-//     const getTotalForPeriod = async (model, dateField, periods) => {
+//     const getTotalForPeriod = async (model, dateField, periods, getRevenue) => {
 //       const totals = {};
 //       for (const period of periods) {
 //         const dateRange = getPeriodDates(period);
-//         const total = await model.find({
-//           [dateField]: { $gte: dateRange.startDate },
-//         });
-//         totals[period] = total.length;
+//         if (!getRevenue) {
+//           const total = await model.find({
+//             [dateField]: { $gte: dateRange.startDate },
+//           });
+//           totals[period] = total.length;
+//         } else if (getRevenue) {
+//           const total = await model.find({
+//             [dateField]: { $gte: dateRange.startDate },
+//             status: 'confirm',
+//             order_type: 'confirm',
+//           });
+//           totals[period] = total.reduce((revenue, order) => revenue + order.total_amount, 0);
+//         }
 //       }
 //       return totals;
 //     };
@@ -69,6 +70,28 @@ const getPeriodDates = (period) => {
 //     const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
 //     const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
 //     const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
+//     const totalRevenue = await getTotalForPeriod(orderSch, 'added_at', periods, true);
+//     const stateData = await stateSch.find({});
+//     const enrichedData = customers.map((cust) => {
+//       const districtName = findNameFromState(stateData, cust.district, 'district');
+//       const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
+//       const villageName = findNameFromState(stateData, cust.village, 'village');
+//       return {
+//         ...cust.toObject(),
+//         district: {
+//           _id: cust.district,
+//           name: districtName,
+//         },
+//         taluka: {
+//           _id: cust.taluka,
+//           name: talukaName,
+//         },
+//         village: {
+//           _id: cust.village,
+//           name: villageName,
+//         },
+//       };
+//     });
 
 //     return otherHelper.sendResponse(
 //       res,
@@ -77,12 +100,13 @@ const getPeriodDates = (period) => {
 //       {
 //         products,
 //         users,
-//         customers,
+//         customers: enrichedData || [],
 //         orders,
 //         totalProducts,
 //         totalOrders,
 //         totalUsers,
 //         totalCustomers,
+//         totalRevenue,
 //       },
 //       null,
 //       'Dashboard data fetched successfully',
@@ -94,33 +118,58 @@ const getPeriodDates = (period) => {
 // };
 
 
-
 adminDashboardController.getDashboardData = async (req, res, next) => {
   try {
     const periods = ['daily', 'weekly', 'monthly'];
-    const products = await productSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }]).select('name categories avl_qty price hsn_code batch_no added_at'); 
+    const products = await productSch
+      .find({ is_deleted: false })
+      .sort({ added_at: -1 })
+      .limit(5)
+      .populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }])
+      .select('name categories avl_qty price hsn_code batch_no added_at');
     const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
     const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted');
-    const orders = await orderSch.find().sort({ added_at: -1 }).limit(10).select('order_id customer advisor_name total_amount status added_at')
+    const orders = await orderSch
+      .find()
+      .sort({ added_at: -1 })
+      .limit(10)
+      .select('order_id customer advisor_name total_amount status added_at')
       .populate([
         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
         { path: 'advisor_name', model: 'users', select: 'name' },
       ]);
-    const getTotalForPeriod = async (model, dateField, periods, getRevenue) => {
+    const complainDetails = await complainSch
+      .find()
+      .sort({ created_at: -1 })
+      .limit(10)
+      .populate([
+        { path: 'product_id', select: 'name.englishname name.gujaratiname' },
+        { path: 'customer_id', select: 'customer_name  firstname middlename lastname' },
+        { path: 'created_by', select: 'name' },
+        { path: 'Comment.name', select: 'name' },
+      ]);
+    const returnOrdersDetails = await orderSch
+      .find({ order_type: 'confirm', status: 'return' })
+      .sort({ added_at: -1 })
+      .limit(10)
+      .select('order_id customer advisor_name total_amount status added_at')
+      .populate([
+        { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
+        { path: 'advisor_name', model: 'users', select: 'name' },
+      ]);
+    const getTotalForPeriod = async (model, dateField, periods, getRevenue, searchQuery) => {
       const totals = {};
       for (const period of periods) {
         const dateRange = getPeriodDates(period);
+        let total;
+        const query = {
+          ...searchQuery,
+          [dateField]: { $gte: dateRange.startDate }, // add other date logic if needed
+        };
+        total = await model.find(query);
         if (!getRevenue) {
-          const total = await model.find({
-            [dateField]: { $gte: dateRange.startDate },
-          });
           totals[period] = total.length;
         } else if (getRevenue) {
-          const total = await model.find({
-            [dateField]: { $gte: dateRange.startDate },
-            status: 'confirm',
-            order_type: 'confirm',
-          });
           totals[period] = total.reduce((revenue, order) => revenue + order.total_amount, 0);
         }
       }
@@ -131,7 +180,10 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
     const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
     const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
     const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
-    const totalRevenue = await getTotalForPeriod(orderSch, 'added_at', periods, true);
+    const totalRevenue = await getTotalForPeriod(orderSch, 'added_at', periods, true, { order_type: 'confirm', status: 'confirm' });
+    const totalComplain = await getTotalForPeriod(complainSch, 'created_at', periods);
+    const totalReturnOrder = await getTotalForPeriod(orderSch, 'added_at', periods, false, { order_type: 'confirm', status: 'return' });
+    const totalReturnOrderRevenue = await getTotalForPeriod(orderSch, 'added_at', periods, true, { order_type: 'confirm', status: 'return' });
     const stateData = await stateSch.find({});
     const enrichedData = customers.map((cust) => {
       const districtName = findNameFromState(stateData, cust.district, 'district');
@@ -163,10 +215,15 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
         users,
         customers: enrichedData || [],
         orders,
+        returnOrdersDetails,
+        complainDetails,
         totalProducts,
         totalOrders,
         totalUsers,
         totalCustomers,
+        totalComplain,
+        totalReturnOrder,
+        totalReturnOrderRevenue,
         totalRevenue,
       },
       null,
