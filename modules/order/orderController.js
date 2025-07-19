@@ -113,7 +113,7 @@ orderController.getAllOrderList = async (req, res, next) => {
         }),
       );
     // }
-console.log('-------------------',finalData)
+
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, finalData, 'Order Data retrieved successfully', page, size, pulledData.totalData);
   } catch (err) {
     next(err);

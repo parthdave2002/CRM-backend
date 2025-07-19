@@ -7,8 +7,8 @@ const productSchema = new schema({
     englishname: { type: String, required: true,  trim: true},
   },
   tech_name: {
-    gujarati_tech_name: { type: String, required: true,  trim: true},
-    english_tech_name: { type: String, required: true,  trim: true},
+    gujarati_tech_name: { type: String, trim: true},
+    english_tech_name: { type: String, trim: true},
   },
   crops: [{ type: mongoose.Schema.Types.ObjectId, ref: 'crop', required: true }],
     isBestSelling: { type: Boolean, required: true, default: false },
