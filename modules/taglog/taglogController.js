@@ -22,6 +22,12 @@ taglogController.getAllTaglogList = async (req, res, next) => {
       if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
       return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search data found", page, size, searchResults.length);
 }
+
+    if (!req.query.page && !req.query.size) {
+      const allData = await taglogSch.find(searchQuery).select(selectQuery).populate(populate).sort(sortQuery);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, allData, null, 'Taglog Data get successfully', null);
+    }
+
     const pulledData = await otherHelper.getQuerySendResponse(taglogSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, "Taglog Data get successfully", page, size, pulledData.totalData);
   } catch (err) {

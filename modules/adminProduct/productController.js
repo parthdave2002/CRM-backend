@@ -146,12 +146,18 @@ productController.getAllProductList = async (req, res, next) => {
         })
         .select('_id');
 
-      const searchResults = await productSch
+      let searchResults = await productSch
         .find({
           $or: [{ 'name.englishname': regex }, { 'name.gujaratiname': regex }, { 'tech_name.english_tech_name': regex }, { 'tech_name.gujarati_tech_name': regex }, { company: { $in: companyIds.map((c) => c._id) } }, { categories: { $in: categoryIds.map((c) => c._id) } }],
         })
-        .populate(populatedata)
+        .populate(populatedata).skip((page-1)*size).limit(size)
         .exec();
+
+        searchResults.totalData = await productSch
+          .countDocuments({
+            $or: [{ 'name.englishname': regex }, { 'name.gujaratiname': regex }, { 'tech_name.english_tech_name': regex }, { 'tech_name.gujarati_tech_name': regex }, { company: { $in: companyIds.map((c) => c._id) } }, { categories: { $in: categoryIds.map((c) => c._id) } }],
+          })
+         
 
       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
 
@@ -160,7 +166,7 @@ productController.getAllProductList = async (req, res, next) => {
         out_of_stock: product.avl_qty === 0 ? true : false,
       }));
 
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedResults, ' Search Data found', page, size, formattedResults.length);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, formattedResults, ' Search Data found', page, size, searchResults.totalData);
     }
 
     if (req.query.crop) {
