@@ -15,9 +15,19 @@ customerController.getAllCustomerList = async (req, res, next) => {
       searchQuery = { $or: [{ customer_name: searchRegex }, { mobile_number: searchRegex }, { address: searchRegex }] };
     }
 
-    if (req.query.search && req.query.search !== 'null') {
+if (req.query.search && req.query.search !== 'null') {
       const searchQuery = req.query.search;
-      const searchResults = await customerSch.find({
+      let searchResults = await customerSch.find({
+        $or: [
+          { customer_name: { $regex: req.query.search, $options: 'i' } },
+          { firstname: { $regex: req.query.search, $options: 'i' } },
+          { lastname: { $regex: req.query.search, $options: 'i' } },
+          { middlename: { $regex: req.query.search, $options: 'i' } },
+          { $expr: { $regexMatch: { input: { $toString: "$mobile_number" }, regex: searchQuery, options: "i" } } }
+        ],
+      }).skip((page - 1) * size).limit(size)
+        .exec();
+      searchResults.totalData = await customerSch.countDocuments({
         $or: [
           { customer_name: { $regex: req.query.search, $options: 'i' } },
           { firstname: { $regex: req.query.search, $options: 'i' } },
@@ -26,8 +36,22 @@ customerController.getAllCustomerList = async (req, res, next) => {
           { $expr: { $regexMatch: { input: { $toString: "$mobile_number" }, regex: searchQuery, options: "i" } } }
         ],
       });
+      console.log('searchResults: ', searchResults.totalData);
       if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, ' Search Data found', page, size, searchResults.length);
+      const stateData = await stateSch.find({});
+      const enrichedData = searchResults.map(cust => {
+        const districtName = findNameFromState(stateData, cust.district, 'district');
+        const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
+        const villageName = findNameFromState(stateData, cust.village, 'village');
+        return {
+          ...cust.toObject(),
+          district_name: districtName,
+          taluka_name: talukaName,
+          village_name: villageName
+        };
+      });
+
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, enrichedData, ' Search Data found', page, size, searchResults.totalData);
     }
 
     populate = [{ path: 'crops', model: 'crop', select: 'name_eng name_guj'},{ path: 'created_by', model: 'users', select: 'name' }];

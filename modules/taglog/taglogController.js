@@ -14,7 +14,7 @@ taglogController.getAllTaglogList = async (req, res, next) => {
       return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Taglog Data Found', null);
     }
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    searchQuery = { ...searchQuery, is_deleted: false };
+    searchQuery = { ...searchQuery, is_deleted: false};
     if (req.query.search && req.query.search !== "null"){
       const searchResults = await taglogSch.find({
         $or: [{ taglog_name: { $regex: req.query.search, $options: "i" } }], 
@@ -24,7 +24,7 @@ taglogController.getAllTaglogList = async (req, res, next) => {
 }
 
     if (!req.query.page && !req.query.size) {
-      const allData = await taglogSch.find(searchQuery).select(selectQuery).populate(populate).sort(sortQuery);
+      const allData = await taglogSch.find({ ...searchQuery, is_active: true }).select(selectQuery).populate(populate).sort(sortQuery);
       return otherHelper.sendResponse(res, httpStatus.OK, true, allData, null, 'Taglog Data get successfully', null);
     }
 

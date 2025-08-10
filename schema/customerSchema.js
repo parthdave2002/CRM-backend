@@ -32,7 +32,7 @@ const customerSchema = new schema({
 });
 
 customerSchema.virtual('customer_name').get(function () {
-  return `${this.lastname?.trim() || ''}  ${this.firstname?.trim() || ''} ${this.middlename?.trim() || ''}`.trim();
+  return `${this.firstname?.trim() || ''} ${this.middlename?.trim() || ''} ${this.lastname?.trim() || ''}`.trim();
 });
 customerSchema.set('toObject', { virtuals: true });
 customerSchema.set('toJSON', { virtuals: true });
