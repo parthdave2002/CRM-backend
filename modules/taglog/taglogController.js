@@ -8,23 +8,27 @@ const taglogController = {};
 
 taglogController.getAllTaglogList = async (req, res, next) => {
   try {
-    const getid = req.query.id;
-    if(getid){
-      const user = await taglogSch.findById(getid);
+
+    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    searchQuery = { ...searchQuery, is_deleted: false };
+    const isPagination = req.query.page && req.query.size;
+    const { id: getid, search } = req.query;
+    if (getid) {
+      const user = await taglogSch.findById(getid).lean();
       return otherHelper.sendResponse(res, httpStatus.OK, true, user, null, 'Taglog Data Found', null);
     }
-    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    searchQuery = { ...searchQuery, is_deleted: false};
-    if (req.query.search && req.query.search !== "null"){
-      const searchResults = await taglogSch.find({
-        $or: [{ taglog_name: { $regex: req.query.search, $options: "i" } }], 
-      });
-      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search data found", page, size, searchResults.length);
-}
 
-    if (!req.query.page && !req.query.size) {
-      const allData = await taglogSch.find({ ...searchQuery, is_active: true }).select(selectQuery).populate(populate).sort(sortQuery);
+    if (search && search !== 'null') {
+      const searchResults = await taglogSch.find({
+        ...searchQuery,
+        taglog_name: { $regex: search, $options: 'i' },
+      }).lean();
+      if (!searchResults.length) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, " Search data found", page, size, searchResults.length);
+    }
+
+    if (!isPagination) {
+      const allData = await taglogSch.find({ ...searchQuery, is_active: true }).select(selectQuery).populate(populate).sort(sortQuery).lean();
       return otherHelper.sendResponse(res, httpStatus.OK, true, allData, null, 'Taglog Data get successfully', null);
     }
 
@@ -86,22 +90,24 @@ taglogController.getAllSubtaglog = async (req, res, next) => {
   try {
     let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
     searchQuery = { ...searchQuery, is_deleted: false };
-    const id = req.query.id;
-    if(!id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Please enter taglog id', null);
 
-    if (req.query.search && req.query.search !== "null"){
+    const { id, search } = req.query;
+    if (!id) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Please enter taglog id', null);
+
+    if (search && search !== 'null') {
       const searchResults = await taglogSch.find({
-        $or: [{ taglog_name: { $regex: req.query.search, $options: "i" } }], 
-      });
-      if (searchResults.length === 0)  return otherHelper.sendResponse(res, httpStatus.OK, true, null, [],'Data not found', null);
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults , " Search data found", page, size, searchResults.length);
+        ...searchQuery,
+        taglog_name: { $regex: search, $options: 'i' },
+      }).lean();
+      if (!searchResults.length) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, searchResults, " Search data found", page, size, searchResults.length);
     }
 
-    const subtags = await taglogSch.findById(id).select("subtaglog");
-    if(subtags){
+    const subtags = await taglogSch.findById(id).select("subtaglog").lean();
+    if (subtags) {
       const activeSubtags = subtags.subtaglog.filter(subtag => subtag.is_deleted == false);
       return otherHelper.sendResponse(res, httpStatus.OK, true, activeSubtags, null, 'Subtaglog data found', null);
-    }else{
+    } else {
       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Enter taglog id not found', null);
     }
   } catch (err) {
@@ -205,57 +211,6 @@ taglogController.AddTaglogCustomer = async (req, res, next) => {
     next(err);
   }
 };
-
-// taglogController.getAllTaglogCustomers = async (req, res, next) => {
-//   try {
-//     const customer_id = req.query.customer_id;
-//     if (!customer_id) {
-//       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Customer ID is required', null);
-//     }
-
-//     if (!mongoose.Types.ObjectId.isValid(customer_id)) {
-//       return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Invalid Customer ID', null);
-//     }
-//     const customerExists = await customerSch.findById(customer_id);
-//     if (!customerExists) {
-//       return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
-//     }
-//     const customers = await taglogCustomerSch.find({ customer_id })
-//       .populate('customer_id', 'firstname middlename lastname')
-//       .populate('taglog_id', 'taglog_name subtaglog')
-//       .lean(); 
-
-//     const enrichedCustomers = customers.map((item) => {
-//       const taglog = item.taglog_id;
-//       const subtaglogId = item.subtaglog_id?.toString();
-
-//       let subtaglogName = null;
-//       if (taglog && Array.isArray(taglog.subtaglog) && subtaglogId) {
-//         const match = taglog.subtaglog.find((sub) => sub._id.toString() === subtaglogId);
-//         if (match) {
-//           subtaglogName = match.name;
-//         }
-//       }
-
-//       const customer = item.customer_id;
-//       const fullName = [customer?.firstname, customer?.middlename, customer?.lastname]
-//         .filter(Boolean)
-//         .join(' ');
-
-//       return {
-//         _id: item._id,
-//         taglog: { _id: taglog?._id, taglog_name: taglog?.taglog_name },
-//         subtaglog: { _id: subtaglogId,  name: subtaglogName, },
-//         comment: item.comment, 
-//         created_by: item.created_by,
-//         createdAt: item.createdAt,
-//       };
-//     });
-//     return otherHelper.sendResponse(res,httpStatus.OK,true,enrichedCustomers,null,'Customer Taglogs fetched successfully',null);
-//   } catch (err) {
-//     next(err);
-//   }
-// };
 
 taglogController.getAllTaglogCustomers = async (req, res, next) => {
   try {

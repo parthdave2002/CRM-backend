@@ -9,15 +9,13 @@ const orderController = {};
 
 orderController.getAllOrderList = async (req, res, next) => {
   try {
+    const { id, customer_id, user_id, returnOrder, search } = req.query;
     let { page = 1, size = 10, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
 
     populate = [
       { path: 'products.id', model: 'product', populate: [  { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }], },
-      {
-        path: 'customer',
-        model: 'customer',
+      { path: 'customer', model: 'customer', populate: [{ path: 'state', model: 'State', select: 'name' }],
         select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name',
-        populate: [{ path: 'state', model: 'State', select: 'name' }],
       },
       { path: 'advisor_name', model: 'users', select: 'name' },
       { path: 'coupon', model: 'coupon' },
@@ -59,7 +57,7 @@ orderController.getAllOrderList = async (req, res, next) => {
       ];
     }
 
-    if (req.query.search) {
+    if (search) {
       const searchRegex = { $regex: req.query.search, $options: 'i' };
       searchQuery = { ...searchQuery, $or: [{ order_id: searchRegex }, { status: searchRegex }] };
     }

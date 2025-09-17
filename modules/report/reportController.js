@@ -9,24 +9,55 @@ const stateSch = require('../../schema/locationSchema');
 const reportController = {};
 
 function findNameFromState(state, id, type) {
-  if (!id || !state || !state.districts) return null;
+  if (!id || !state?.districts) return null;
 
   for (const district of state.districts) {
-    if (type === 'district' && district._id.equals(id)) {
-      return district.name;
-    }
+    if (type === 'district' && district._id.equals(id)) return district.name;
+
     if (!district.talukas) continue;
     for (const taluka of district.talukas) {
-      if (type === 'taluka' && taluka._id.equals(id)) {
-        return taluka.name;
-      }
+      if (type === 'taluka' && taluka._id.equals(id)) return taluka.name;
+
       if (!taluka.villages) continue;
       for (const village of taluka.villages) {
-        if (type === 'village' && village._id.equals(id)) {
-          return village.name;
-        }
+        if (type === 'village' && village._id.equals(id)) return village.name;
       }
     }
+  }
+  return null;
+}
+
+async function enrichCustomerLocation(customer) {
+  if (!customer || !customer.state) {
+    return {
+      ...customer?.toObject?.(),
+      district_name: '',
+      taluka_name: '',
+      village_name: '',
+    };
+  }
+
+  try {
+    // Use populated state or fetch if missing districts
+    const stateData =
+      customer.state?.districts?.length
+        ? customer.state
+        : await stateSch.findById(customer.state._id).lean();
+
+    return {
+      ...customer.toObject(),
+      district_name: findNameFromState(stateData, customer.district, 'district') || '',
+      taluka_name: findNameFromState(stateData, customer.taluka, 'taluka') || '',
+      village_name: findNameFromState(stateData, customer.village, 'village') || '',
+    };
+  } catch (err) {
+    console.error(`Error enriching customer ${customer._id}:`, err.message);
+    return {
+      ...customer?.toObject?.(),
+      district_name: '',
+      taluka_name: '',
+      village_name: '',
+    };
   }
 }
 
@@ -57,53 +88,14 @@ reportController.getAllReportList = async (req, res, next) => {
           },
           { path: 'advisor_name', model: 'users', select: 'name' },
           { path: 'coupon', model: 'coupon' },
-        ]);
+        ]).lean();
 
-        finalData = await Promise.all(
-          pulledData.map(async (order) => {
-            const cust = order.customer;
-            if (!cust && !cust?.state) {
-              return {
-                ...order.toObject(),
-                customer: {
-                  ...cust?.toObject?.(),
-                  district_name: '',
-                  taluka_name: '',
-                  village_name: '',
-                },
-              };
-            }
-
-            try {
-              const stateData = cust.state?.districts && cust.state?.districts.length ? cust.state : await stateSch.findOne({ _id: order.customer.toObject().state._id }).lean();
-              const districtName = findNameFromState(stateData, cust.district, 'district') || '';
-              const talukaName = findNameFromState(stateData, cust.taluka, 'taluka') || '';
-              const villageName = findNameFromState(stateData, cust.village, 'village') || '';
-
-              return {
-                ...order.toObject(),
-                customer: {
-                  ...cust?.toObject?.(),
-                  district_name: districtName,
-                  taluka_name: talukaName,
-                  village_name: villageName,
-                },
-              };
-            } catch (err) {
-              console.error(`Error enriching customer ${cust._id}:`, err.message);
-              return {
-                ...order.toObject(),
-                customer: {
-                  ...cust?.toObject?.(),
-                  district_name: '',
-                  taluka_name: '',
-                  village_name: '',
-                },
-              };
-            }
-          }),
+        data = await Promise.all(
+          orders.map(async (order) => ({
+            ...order,
+            customer: await enrichCustomerLocation(order.customer),
+          }))
         );
-        data = finalData;
         break;
       }
 
@@ -112,55 +104,21 @@ reportController.getAllReportList = async (req, res, next) => {
           { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
           { path: 'created_by', model: 'users', select: 'name' },
           { path: 'state', model: 'State', select: 'name' },
-        ]);
-        finalData = await Promise.all(
-          farmers.map(async (cust) => {
-            if (!cust && !cust?.state) {
-              return {
-                ...cust?.toObject?.(),
-                district_name: '',
-                taluka_name: '',
-                village_name: '',
-              };
-            }
-
-            try {
-              const stateData = cust.state?.districts && cust.state?.districts.length ? cust.state : await stateSch.findOne({ _id: cust.toObject().state._id }).lean();
-              const districtName = findNameFromState(stateData, cust.district, 'district') || '';
-              const talukaName = findNameFromState(stateData, cust.taluka, 'taluka') || '';
-              const villageName = findNameFromState(stateData, cust.village, 'village') || '';
-
-              return {
-                ...cust?.toObject?.(),
-                district_name: districtName,
-                taluka_name: talukaName,
-                village_name: villageName,
-              };
-            } catch (err) {
-              console.error(`Error enriching customer ${cust._id}:`, err.message);
-              return {
-                ...cust?.toObject?.(),
-                district_name: '',
-                taluka_name: '',
-                village_name: '',
-              };
-            }
-          }),
-        );
-        data = finalData;
+        ]).lean();
+        data = await Promise.all(farmers.map(enrichCustomerLocation));
         break;
       }
 
       case 'advisor': {
-        filter.role = { $ne: '67b388a7d593423df0e24295' } 
-        const advisors = await advisorSch.find(filter).populate([{ path: 'role', model: 'roles', select: 'role_title' }]) .select('aadhar_card pan_card bank_passbook is_active _id name email password gender mobile_no date_of_joining date_of_birth emergency_mobile_no emergency_contact_person address role added_at');
+        filter.role = { $ne: '67b388a7d593423df0e24295' }
+        const advisors = await advisorSch.find(filter).populate([{ path: 'role', model: 'roles', select: 'role_title' }]).select('aadhar_card pan_card bank_passbook is_active _id name email password gender mobile_no date_of_joining date_of_birth emergency_mobile_no emergency_contact_person address role added_at').lean();
         data = advisors;
         break;
       }
 
       case 'lead': {
         if (subtype) filter.type = subtype;
-        const leads = await leadSch.find(filter);
+        const leads = await leadSch.find(filter).lean();
         data = leads;
         break;
       }

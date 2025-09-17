@@ -7,105 +7,78 @@ const complainSch = require("../../schema/complainSchema")
 
 const customerController = {};
 
-customerController.getAllCustomerList = async (req, res, next) => {
-  try {
-    let { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
-    if (req.query.search) {
-      const searchRegex = { $regex: req.query.search};
-      searchQuery = { $or: [{ customer_name: searchRegex }, { mobile_number: searchRegex }, { address: searchRegex }] };
-    }
+const findNameFromState = (states, id, type) => {
+  if (!id || !states) return null;
+  const stateArray = Array.isArray(states) ? states : [states];
 
-if (req.query.search && req.query.search !== 'null') {
-      const searchQuery = req.query.search;
-      let searchResults = await customerSch.find({
-        $or: [
-          { customer_name: { $regex: req.query.search, $options: 'i' } },
-          { firstname: { $regex: req.query.search, $options: 'i' } },
-          { lastname: { $regex: req.query.search, $options: 'i' } },
-          { middlename: { $regex: req.query.search, $options: 'i' } },
-          { $expr: { $regexMatch: { input: { $toString: "$mobile_number" }, regex: searchQuery, options: "i" } } }
-        ],
-      }).skip((page - 1) * size).limit(size)
-        .exec();
-      searchResults.totalData = await customerSch.countDocuments({
-        $or: [
-          { customer_name: { $regex: req.query.search, $options: 'i' } },
-          { firstname: { $regex: req.query.search, $options: 'i' } },
-          { lastname: { $regex: req.query.search, $options: 'i' } },
-          { middlename: { $regex: req.query.search, $options: 'i' } },
-          { $expr: { $regexMatch: { input: { $toString: "$mobile_number" }, regex: searchQuery, options: "i" } } }
-        ],
-      });
-      console.log('searchResults: ', searchResults.totalData);
-      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
-      const stateData = await stateSch.find({});
-      const enrichedData = searchResults.map(cust => {
-        const districtName = findNameFromState(stateData, cust.district, 'district');
-        const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
-        const villageName = findNameFromState(stateData, cust.village, 'village');
-        return {
-          ...cust.toObject(),
-          district_name: districtName,
-          taluka_name: talukaName,
-          village_name: villageName
-        };
-      });
+  for (const state of stateArray) {
+    if (!state.districts) return null;
 
-      return otherHelper.paginationSendResponse(res, httpStatus.OK, true, enrichedData, ' Search Data found', page, size, searchResults.totalData);
-    }
-
-    populate = [{ path: 'crops', model: 'crop', select: 'name_eng name_guj'},{ path: 'created_by', model: 'users', select: 'name' }];
-    selectQuery = 'customer_name  firstname middlename lastname  mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at is_deleted created_by';
-    if (req.query.id) {
-      searchQuery = { _id: req.query.id };
-    }
-
-    if (req.query.getByUser) {
-      created_by = { _id: req.query.id };
-    }
-    const pulledData = await otherHelper.getQuerySendResponse(customerSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    const stateData = await stateSch.find({}); 
-    const enrichedData = pulledData.data.map(cust => {
-      const districtName = findNameFromState(stateData, cust.district, 'district');
-      const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
-      const villageName = findNameFromState(stateData, cust.village, 'village');
-      return {
-        ...cust.toObject(),
-        district_name: districtName,
-        taluka_name: talukaName,
-        village_name: villageName
-      };
-    });
-
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true,enrichedData, 'Customer Data fetched successfully', page, size, pulledData.totalData);
-  } catch (err) {
-    next(err);
-  }
-};
-
-function findNameFromState(states, id, type) {
-  if (!id || !states ) return null;
-  const statesData = Array.isArray(states)? states :[states] 
-  for (const state of statesData) {
-    if(!state.districts) return null;
     for (const district of state.districts) {
-      if (type === 'district' && district._id.equals(id)) {
-        return district.name;
-      }
+      if (type === "district" && district._id.equals(id)) return district.name;
+
       for (const taluka of district.talukas) {
-        if (type === 'taluka' && taluka._id.equals(id)) {
-          return taluka.name;
-        }
+        if (type === "taluka" && taluka._id.equals(id)) return taluka.name;
+
         for (const village of taluka.villages) {
-          if (type === 'village' && village._id.equals(id)) {
-            return village.name;
-          }
+          if (type === "village" && village._id.equals(id)) return village.name;
         }
       }
     }
   }
   return null;
-}
+};
+
+const enrichCustomerData = (customers, stateData) => {
+  return customers.map((cust) => ({
+    ...cust,
+    district_name: findNameFromState(stateData, cust.district, "district"),
+    taluka_name: findNameFromState(stateData, cust.taluka, "taluka"),
+    village_name: findNameFromState(stateData, cust.village, "village"),
+  }));
+};
+
+customerController.getAllCustomerList = async (req, res, next) => {
+  try {
+    const { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
+    const query = { ...searchQuery };
+    const search = req.query.search?.trim();
+
+    if (search && search !== "null") {
+      const searchRegex = new RegExp(search, "i");
+      query.$or = [
+        { customer_name: searchRegex },
+        { firstname: searchRegex },
+        { middlename: searchRegex },
+        { lastname: searchRegex },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $toString: "$mobile_number" },
+              regex: search,
+              options: "i",
+            },
+          },
+        },
+      ];
+    }
+
+    const populateFields = [
+      { path: "crops", model: "crop", select: "name_eng name_guj" },
+      { path: "created_by", model: "users", select: "name" },
+    ];
+
+    const [customers, totalData, stateData] = await Promise.all([
+      customerSch.find(query).sort(sortQuery).skip((page - 1) * size).limit(size).populate(populateFields).select("customer_name firstname middlename lastname mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at is_deleted created_by" ).lean(),
+      customerSch.countDocuments(query),
+      stateSch.find({}).lean(),
+    ]);
+    const enrichedData = enrichCustomerData(customers, stateData);
+    return otherHelper.paginationSendResponse( res, httpStatus.OK, true, enrichedData, "Customer Data fetched successfully", page, size, totalData);
+  } catch (err) {
+    next(err);
+  }
+};
 
 customerController.AddCustomerData = async (req, res, next) => {
   try {
@@ -120,24 +93,17 @@ customerController.AddCustomerData = async (req, res, next) => {
       }
       customerData.created_by = req.user.id;
       customerData.added_at = new Date();
-      const newCustomer = new customerSch(customerData);
-      (await newCustomer.save()).populate([{ path: 'crops', model: 'crop', select: 'name_eng name_guj'}]);
-      
-const populatedCustomer = await customerSch.findById(newCustomer._id)
-  .populate({ path: 'crops', select: 'name_eng name_guj' });
-      const populateData = [populatedCustomer];
-      const stateData = await stateSch.find({}); 
-      const enrichedData = populateData.map(cust => {
-      const districtName = findNameFromState(stateData, cust.district, 'district');
-      const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
-      const villageName = findNameFromState(stateData, cust.village, 'village');
-      return {
-        ...cust.toObject(),
-        district_name: districtName,
-        taluka_name: talukaName,
-        village_name: villageName
-      };
-    });
+      const newCustomer = await new customerSch(customerData).save();
+
+      const [populatedCustomer, stateData] = await Promise.all([
+        customerSch
+          .findById(newCustomer._id)
+          .populate({ path: "crops", select: "name_eng name_guj" })
+          .lean(),
+        stateSch.find({}).lean(),
+      ]);
+
+      const enrichedData = enrichCustomerData([populatedCustomer], stateData);
 
       return otherHelper.sendResponse(res, httpStatus.OK, true, enrichedData, null, 'Customer Created successfully', null);
     }

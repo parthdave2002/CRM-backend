@@ -2,7 +2,6 @@ const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const roleSch = require('../../schema/roleSchema');
 const roleAccessModel = require('../../schema/role_accessschema');
-
 const { getAccessData } = require('../../helper/Access.helper');
 const roleConfig = require('./roleConfig');
 
@@ -31,16 +30,10 @@ roleController.GetRoles = async (req, res, next) => {
     }
     
     let pulledData = await otherHelper.getQuerySendResponse(roleSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
-    let AccessData = await getAccessData(req);
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, pulledData.data, roleConfig.roleGet, page, size, pulledData.totalData);
   } catch (err) {
     next(err);
   }
-};
-
-roleController.GetRoleDetail = async (req, res, next) => {
-  const roles = await roleSch.findById(req.query.id, { is_active: 1, role_title: 1, description: 1 });
-  return otherHelper.sendResponse(res, httpStatus.OK, true, roles, null, roleConfig.roleGet, null, 'Role Not Found');
 };
 
 roleController.AddRoles = async (req, res, next) => {
@@ -78,12 +71,6 @@ roleController.DeleteRole = async (req, res, next) => {
   }
 };
 
-roleController.GetRoleSearch = async (req, res, next) => {
-  const roles = await roleSch.find({
-    $or: [{ role_title: { $regex: req.query.key } }],
-  });
-  return otherHelper.sendResponse(res, httpStatus.OK, true, roles, null, roleConfig.roleGet, null, 'Role Not Found');
-};
 // Role Api Code API
 
 roleController.GetRolePermission = async (req, res, next) => {

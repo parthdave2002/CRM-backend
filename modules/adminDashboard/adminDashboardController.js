@@ -1,9 +1,6 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
-const apiCallHelper = require('../../helper/apicall.helper');
 const userSch = require('../../schema/userSchema');
-const bugSch = require('../../schema/bugSchema');
-const roleSch = require('../../schema/roleSchema');
 const productSch = require("../../schema/productSchema");
 const orderSch = require("../../schema/orderSchema");
 const complainSch = require("../../schema/complainSchema")
@@ -14,14 +11,13 @@ const adminDashboardController = {};
 
 const getPeriodDates = (period) => {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   let startDate = new Date(today);
   let endDate = new Date(today);
-  startDate.setHours(0, 0, 0, 0);
   endDate.setHours(23, 59, 59, 999);
-  switch (period.toString()) {
-    case 'daily':
-      startDate.setDate(today.getDate());
-      break;
+
+  switch (period) {
     case 'weekly':
       startDate.setDate(today.getDate() - 7);
       break;
@@ -29,116 +25,68 @@ const getPeriodDates = (period) => {
       startDate.setMonth(today.getMonth() - 1);
       break;
     default:
+      break; // daily uses today's date
   }
-  return { startDate: startDate, endDate: endDate };
+  return { startDate, endDate };
 };
 
+const getTotalForPeriod = async (model, dateField, periods, getRevenue = false, searchQuery = {}) => {
+  const totals = {};
+   await Promise.all(
+    periods.map(async (period) => {
+      const { startDate, endDate } = getPeriodDates(period);
+      const query = { ...searchQuery, [dateField]: { $gte: startDate, $lte: endDate } };
 
-// adminDashboardController.getDashboardData = async (req, res, next) => {
-//   try {
-//     const periods = ['daily', 'weekly', 'monthly'];
-//     const products = await productSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }]).select('name categories avl_qty price hsn_code batch_no added_at'); 
-//     const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
-//     const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted');
-//     const orders = await orderSch.find().sort({ added_at: -1 }).limit(10).select('order_id customer advisor_name total_amount status added_at')
-//       .populate([
-//         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
-//         { path: 'advisor_name', model: 'users', select: 'name' },
-//       ]);
-//     const getTotalForPeriod = async (model, dateField, periods, getRevenue) => {
-//       const totals = {};
-//       for (const period of periods) {
-//         const dateRange = getPeriodDates(period);
-//         if (!getRevenue) {
-//           const total = await model.find({
-//             [dateField]: { $gte: dateRange.startDate },
-//           });
-//           totals[period] = total.length;
-//         } else if (getRevenue) {
-//           const total = await model.find({
-//             [dateField]: { $gte: dateRange.startDate },
-//             status: 'confirm',
-//             order_type: 'confirm',
-//           });
-//           totals[period] = total.reduce((revenue, order) => revenue + order.total_amount, 0);
-//         }
-//       }
-//       return totals;
-//     };
+      if (getRevenue) {
+        const revenue = await model.aggregate([
+          { $match: query },
+          { $group: { _id: null, total: { $sum: "$total_amount" } } }
+        ]);
+        totals[period] = revenue[0]?.total || 0;
+      } else {
+        totals[period] = await model.countDocuments(query);
+      }
+    })
+  );
 
-//     const totalProducts = await getTotalForPeriod(productSch, 'added_at', periods);
-//     const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
-//     const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
-//     const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
-//     const totalRevenue = await getTotalForPeriod(orderSch, 'added_at', periods, true);
-//     const stateData = await stateSch.find({});
-//     const enrichedData = customers.map((cust) => {
-//       const districtName = findNameFromState(stateData, cust.district, 'district');
-//       const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
-//       const villageName = findNameFromState(stateData, cust.village, 'village');
-//       return {
-//         ...cust.toObject(),
-//         district: {
-//           _id: cust.district,
-//           name: districtName,
-//         },
-//         taluka: {
-//           _id: cust.taluka,
-//           name: talukaName,
-//         },
-//         village: {
-//           _id: cust.village,
-//           name: villageName,
-//         },
-//       };
-//     });
+  return totals;
+};
 
-//     return otherHelper.sendResponse(
-//       res,
-//       httpStatus.OK,
-//       true,
-//       {
-//         products,
-//         users,
-//         customers: enrichedData || [],
-//         orders,
-//         totalProducts,
-//         totalOrders,
-//         totalUsers,
-//         totalCustomers,
-//         totalRevenue,
-//       },
-//       null,
-//       'Dashboard data fetched successfully',
-//       null,
-//     );
-//   } catch (err) {
-//     next(err);
-//   }
-// };
+const createStateLookupMaps = (states) => {
+  const districtMap = new Map();
+  const talukaMap = new Map();
+  const villageMap = new Map();
 
+  states.forEach((state) => {
+    state.districts.forEach((district) => {
+      districtMap.set(district._id.toString(), district.name);
+
+      district.talukas.forEach((taluka) => {
+        talukaMap.set(taluka._id.toString(), taluka.name);
+
+        taluka.villages.forEach((village) => {
+          villageMap.set(village._id.toString(), village.name);
+        });
+      });
+    });
+  });
+
+  return { districtMap, talukaMap, villageMap };
+};
 
 adminDashboardController.getDashboardData = async (req, res, next) => {
   try {
     const periods = ['daily', 'weekly', 'monthly'];
-    const products = await productSch
-      .find({ is_deleted: false })
-      .sort({ added_at: -1 })
-      .limit(5)
-      .populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }])
-      .select('name categories avl_qty price hsn_code batch_no added_at');
-    const users = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at');
-    const customers = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted');
-    const orders = await orderSch
-      .find()
-      .sort({ added_at: -1 })
-      .limit(10)
-      .select('order_id customer advisor_name total_amount status added_at')
+    const productQuery = await productSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }]).select('name categories avl_qty price hsn_code batch_no added_at').lean();
+    const userQuery  = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at').lean();
+    const customerQuery  = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted').lean();
+    const orderQuery  = await orderSch.find().sort({ added_at: -1 }).limit(10).select('order_id customer advisor_name total_amount status added_at')
       .populate([
         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
         { path: 'advisor_name', model: 'users', select: 'name' },
-      ]);
-    const complainDetails = await complainSch
+      ])
+      .lean();
+    const complainQuery  = await complainSch
       .find()
       .sort({ created_at: -1 })
       .limit(10)
@@ -147,8 +95,9 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
         { path: 'customer_id', select: 'customer_name  firstname middlename lastname' },
         { path: 'created_by', select: 'name' },
         { path: 'Comment.name', select: 'name' },
-      ]);
-    const returnOrdersDetails = await orderSch
+      ])
+      .lean();
+    const returnOrderQuery  = await orderSch
       .find({ order_type: 'confirm', status: 'return' })
       .sort({ added_at: -1 })
       .limit(10)
@@ -156,211 +105,48 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
       .populate([
         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
         { path: 'advisor_name', model: 'users', select: 'name' },
+      ])
+      .lean();
+
+      const [products, users, customers, orders, complainDetails, returnOrdersDetails, stateData] = await Promise.all([
+        productQuery,
+        userQuery,
+        customerQuery,
+        orderQuery,
+        complainQuery,
+        returnOrderQuery,
+        stateSch.find({}).lean()
       ]);
-    const getTotalForPeriod = async (model, dateField, periods, getRevenue, searchQuery) => {
-      const totals = {};
-      for (const period of periods) {
-        const dateRange = getPeriodDates(period);
-        let total;
-        const query = {
-          ...searchQuery,
-          [dateField]: { $gte: dateRange.startDate }, // add other date logic if needed
-        };
-        total = await model.find(query);
-        if (!getRevenue) {
-          totals[period] = total.length;
-        } else if (getRevenue) {
-          totals[period] = total.reduce((revenue, order) => revenue + order.total_amount, 0);
-        }
-      }
-      return totals;
-    };
 
-    const totalProducts = await getTotalForPeriod(productSch, 'added_at', periods);
-    const totalUsers = await getTotalForPeriod(userSch, 'added_at', periods);
-    const totalOrders = await getTotalForPeriod(orderSch, 'added_at', periods);
-    const totalCustomers = await getTotalForPeriod(customerSch, 'added_at', periods);
-    const totalRevenue = await getTotalForPeriod(orderSch, 'added_at', periods, true, { order_type: 'confirm', status: 'confirm' });
-    const totalComplain = await getTotalForPeriod(complainSch, 'created_at', periods);
-    const totalReturnOrder = await getTotalForPeriod(orderSch, 'added_at', periods, false, { order_type: 'confirm', status: 'return' });
-    const totalReturnOrderRevenue = await getTotalForPeriod(orderSch, 'added_at', periods, true, { order_type: 'confirm', status: 'return' });
-    const stateData = await stateSch.find({});
-    const enrichedData = customers.map((cust) => {
-      const districtName = findNameFromState(stateData, cust.district, 'district');
-      const talukaName = findNameFromState(stateData, cust.taluka, 'taluka');
-      const villageName = findNameFromState(stateData, cust.village, 'village');
-      return {
-        ...cust.toObject(),
-        district: {
-          _id: cust.district,
-          name: districtName,
-        },
-        taluka: {
-          _id: cust.taluka,
-          name: talukaName,
-        },
-        village: {
-          _id: cust.village,
-          name: villageName,
-        },
-      };
-    });
-
-    return otherHelper.sendResponse(
-      res,
-      httpStatus.OK,
-      true,
-      {
-        products,
-        users,
-        customers: enrichedData || [],
-        orders,
-        returnOrdersDetails,
-        complainDetails,
-        totalProducts,
-        totalOrders,
-        totalUsers,
-        totalCustomers,
-        totalComplain,
-        totalReturnOrder,
-        totalReturnOrderRevenue,
-        totalRevenue,
-      },
-      null,
-      'Dashboard data fetched successfully',
-      null,
-    );
-  } catch (err) {
-    next(err);
-  }
-};
-
-function findNameFromState(states, id, type) {
-  if (!id) return null;
-  for (const state of states) {
-    for (const district of state.districts) {
-      if (type === 'district' && district._id.equals(id)) {
-        return district.name;
-      }
-      for (const taluka of district.talukas) {
-        if (type === 'taluka' && taluka._id.equals(id)) {
-          return taluka.name;
-        }
-        for (const village of taluka.villages) {
-          if (type === 'village' && village._id.equals(id)) {
-            return village.name;
-          }
-        }
-      }
-    }
-  }
-  return null;
-}
-adminDashboardController.getNoOfCustomerByRegistration = async (req, res, next) => {
-  try {
-    const data = await userSch.aggregate([
-      {
-        $match: {
-          is_deleted: false,
-        },
-      },
-      {
-        $group: {
-          _id: `$register_method`,
-          amt: { $sum: 1 },
-        },
-      },
+      const [
+      totalProducts,
+      totalUsers,
+      totalOrders,
+      totalCustomers,
+      totalRevenue,
+      totalComplain,
+      totalReturnOrder,
+      totalReturnOrderRevenue
+    ] = await Promise.all([
+      getTotalForPeriod(productSch, 'added_at', periods),
+      getTotalForPeriod(userSch, 'added_at', periods),
+      getTotalForPeriod(orderSch, 'added_at', periods),
+      getTotalForPeriod(customerSch, 'added_at', periods),
+      getTotalForPeriod(orderSch, 'added_at', periods, true, { order_type: 'confirm', status: 'confirm' }),
+      getTotalForPeriod(complainSch, 'created_at', periods),
+      getTotalForPeriod(orderSch, 'added_at', periods, false, { order_type: 'confirm', status: 'return' }),
+      getTotalForPeriod(orderSch, 'added_at', periods, true, { order_type: 'confirm', status: 'return' }),
     ]);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, 'Get User by Day', null);
-  } catch (err) {
-    next(err);
-  }
-};
 
-adminDashboardController.getWaftEngineInfo = async (req, res, next) => {
-  try {
-    const d = await apiCallHelper.requestThirdPartyApi(req, 'https://waftengine.org/api/documentation/latestinfo', {}, {}, 'GET', next);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, d.data, null, 'Get User by Day', null);
-  } catch (err) {
-    next(err);
-  }
-};
+    const { districtMap, talukaMap, villageMap } = createStateLookupMaps(stateData);
+    const enrichedData = customers.map((cust) => ({
+      ...cust,
+      district: { _id: cust.district, name: districtMap.get(cust.district?.toString()) || null },
+      taluka: { _id: cust.taluka, name: talukaMap.get(cust.taluka?.toString()) || null },
+      village: { _id: cust.village, name: villageMap.get(cust.village?.toString()) || null },
+    }));
 
-adminDashboardController.GetErrorsGroupBy = async (req, res, next) => {
-  try {
-    const bugs = await bugSch.aggregate([{ $group: { _id: '$error_type', count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
-    let totalData = 0;
-    bugs.forEach((each) => {
-      totalData = totalData + each.count;
-    });
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, bugs, 'errors by group by get success!', 1, 1, totalData);
-  } catch (err) {
-    next(err);
-  }
-};
-
-adminDashboardController.getLastXDayUserRegistration = async (req, res, next) => {
-  try {
-    const days = req.params.day;
-    var d = new Date();
-    d.setDate(d.getDate() - days);
-    const data = await userSch.aggregate([
-      {
-        $match: {
-          added_at: { $gte: d },
-          is_deleted: false,
-        },
-      },
-      {
-        $group: {
-          _id: {
-            month: { $month: '$added_at' },
-            day: { $dayOfMonth: '$added_at' },
-            year: { $year: '$added_at' },
-          },
-          amt: { $sum: 1 },
-        },
-      },
-      {
-        $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1, '_id.rm': 1 },
-      },
-      { $project: { _id: '$_id.year', month: '$_id.month', day: '$_id.day', rm: '$_id.rm', amt: '$amt' } },
-    ]);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, data, null, 'Get User by Day', null);
-  } catch (err) {
-    next(err);
-  }
-};
-
-adminDashboardController.getLatestFiveUsers = async (req, res, next) => {
-  try {
-    let top = 5;
-    top = Number.parseInt(top);
-    const fiveUsers = await userSch.find({ is_deleted: false }).select('name email image').sort({ _id: -1 }).limit(top);
-    return otherHelper.sendResponse(res, httpStatus.OK, true, fiveUsers, null, 'Get User by Day', null);
-  } catch (err) {
-    next(err);
-  }
-};
-
-adminDashboardController.getNoOfBlogByBlogWriter = async (req, res, next) => {
-  try {
-    const data = []
-    const count = 0
-    return otherHelper.sendResponse(res, httpStatus.OK, true, { blog: data, count: count }, null, 'Get User by Day', null);
-  } catch (err) {
-    next(err);
-  }
-};
-
-adminDashboardController.GetAllUserGroupBy = async (req, res, next) => {
-  try {
-    let role = await roleSch.find({ is_deleted: false }).select('role_title').lean();
-    let totalData = await userSch.countDocuments({ is_deleted: false });
-    for (var j = 0; j < role.length; j++) {
-      role[j].count = await userSch.countDocuments({ roles: { $in: [role[j]._id] }, is_deleted: false });
-    }
-    return otherHelper.paginationSendResponse(res, httpStatus.OK, true, { role }, 'users by group by get success!', 1, 1, totalData);
+    return otherHelper.sendResponse( res, httpStatus.OK, true, { products, users, customers: enrichedData || [], orders, returnOrdersDetails, complainDetails, totalProducts, totalOrders, totalUsers, totalCustomers, totalComplain, totalReturnOrder,  totalReturnOrderRevenue, totalRevenue,}, null, 'Dashboard data fetched successfully', null,);
   } catch (err) {
     next(err);
   }
