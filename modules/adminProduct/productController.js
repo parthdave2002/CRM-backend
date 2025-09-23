@@ -159,7 +159,7 @@ productController.getAllProductList = async (req, res, next) => {
           })
          
 
-      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, [], [], 'Data not found', null);
 
       const formattedResults = searchResults.map((product) => ({
         ...product.toObject(),
@@ -173,7 +173,7 @@ productController.getAllProductList = async (req, res, next) => {
       searchConditions.push({ crops: req.query.crop });
       const searchResults = await productSch.find({ crops: req.query.crop, is_deleted: false }).populate(populatedata).exec();
 
-      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, null, [], 'Data not found', null);
+      if (searchResults.length === 0) return otherHelper.sendResponse(res, httpStatus.OK, true, [], [], 'Data not found', null);
 
       const formattedResults = searchResults.map((product) => ({
         ...product.toObject(),

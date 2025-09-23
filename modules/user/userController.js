@@ -130,6 +130,11 @@ userController.UpdateUserImage = async (req, res, next) => {
 
     if (!userId) return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "User id not found", null);
 
+    if (user.password) {
+      let salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(user.password, salt);
+    }
+
     let updateData = {
       $set: { ...user, updated_at: new Date() },
     };
@@ -251,6 +256,29 @@ userController.updateUserProfileImage = async (req, res, next) => {
     next(err);
   }
 };
+
+
+userController.updateUserPassword = async (req, res, next) => {
+  let { password } = req.query;
+  let userId = req.user.id;
+
+  try {
+    if (!password) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Password is required', null);
+    if (password.length < 6) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Password must be at least 6 characters long', null);
+    if (!userId) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'User ID is required', null);
+
+    const user = await userSch.findById(userId);
+    if (!user) return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'User not found', null);
+    let salt = await bcrypt.genSalt(10);
+    let hashPwd = await bcrypt.hash(password, salt);    
+    const updateData = { $set: { password: hashPwd, updated_at: new Date() } };
+    await userSch.findByIdAndUpdate(userId, updateData, { new: true });
+    await tokenSchema.deleteMany({ userId: userId });
+    return otherHelper.sendResponse(res, httpStatus.OK, true, null, null, 'Password updated successfully', null);
+  } catch (err) {
+    next(err);    
+  }
+}
 
 
 module.exports = userController;

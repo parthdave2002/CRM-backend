@@ -18,5 +18,6 @@ router.post('/login', userModule.Login);
 
 router.get('/profile', authentication, userModule.GetProfile);
 router.post('/update-profile', authentication, uploadHelper.uploadFiles('public/user', 'single', 'user_pic'), userModule.updateUserProfileImage);
+router.get('/update-password', authentication, userModule.updateUserPassword);
 
 module.exports = router;
