@@ -4,6 +4,6 @@ const { authentication, authorization } = require('../../middleware/auth.middlew
 const reportController = require('../../modules/report/reportController');
 
 router.get('/get-report',authentication,authorization("Report"), reportController.getAllReportList);
-router.get('/get-export',authentication,authorization("Report"), reportController.exportData);
+router.get('/export-data',authentication,authorization("Report"), reportController.exportData);
 
 module.exports = router
