@@ -132,7 +132,6 @@ async function enrichCustomerLocation(customer) {
 //   }
 // };
 
-
 reportController.getAllReportList = async (req, res, next) => {
   try {
     const { type, subtype, startDate, endDate } = req.query;
@@ -178,17 +177,23 @@ reportController.getAllReportList = async (req, res, next) => {
 
       // Repeat same skip/limit logic for other types
       case "farmer": {
+        // Populate crops, creator and full location (state + resolved village/taluka/district)
         const query = customerSch.find(filter)
           .populate([
             { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
             { path: 'created_by', model: 'users', select: 'name' },
             { path: 'state', model: 'State', select: 'name districts talukas villages' },
+            { path: 'village', model: 'Village', select: 'name' },
+            { path: 'taluka', model: 'Taluka', select: 'name' },
+            { path: 'district', model: 'District', select: 'name' },
           ])
           .lean();
-  query.skip(skip).limit(size);
-  const farmers = await query;
+
+        query.skip(skip).limit(size);
+        const farmers = await query;
         totalData = await customerSch.countDocuments(filter);
-        data = await Promise.all(farmers.map(enrichCustomerLocation));
+        // populated documents already contain the required location names; no additional enrichment
+        data = farmers;
         break;
       }
 
@@ -219,7 +224,6 @@ reportController.getAllReportList = async (req, res, next) => {
     next(err);
   }
 };
-
 
 reportController.exportData = async (req, res, next) => {
   try {
@@ -266,59 +270,36 @@ reportController.exportData = async (req, res, next) => {
         const q = orderSch.find(filter)
           .populate([
             { path: 'products.id', model: 'product', populate: [{ path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }] },
-            { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode post_office village vaillage_name taluka taluka_name district district_name', populate: [{ path: 'state', model: 'State', select: 'name districts talukas villages' }] },
+            { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode post_office village vaillage_name taluka taluka_name district district_name',populate: [{ path: 'state', model: 'State', select: 'name' }, 
+              { path: 'village', model: 'Village', select: 'name' },
+              { path: 'taluka', model: 'Taluka', select: 'name' },
+              { path: 'district', model: 'District', select: 'name' },
+              ], },
             { path: 'advisor_name', model: 'users', select: 'name' },
             { path: 'coupon', model: 'coupon' },
           ])
           .lean()
           .cursor();
 
-        await streamAndWrite(q, async (order) => ({
-          ...order,
-          customer: await enrichCustomerLocation(order.customer),
-        }));
+        await streamAndWrite(q);
         break;
       }
 
       case 'farmer': {
-        // Use aggregation with $lookup to avoid N+1 queries when enriching location
-        const pipeline = [{ $match: filter }];
+        // Stream customers with populated crops, created_by and explicit location refs
+        const q = customerSch.find(filter)
+          .populate([
+            { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
+            { path: 'created_by', model: 'users', select: 'name' },
+            { path: 'state', model: 'State', select: 'name' },
+            { path: 'village', model: 'Village', select: 'name' },
+            { path: 'taluka', model: 'Taluka', select: 'name' },
+            { path: 'district', model: 'District', select: 'name' },
+          ])
+          .lean()
+          .cursor();
 
-        // lookup crops
-        pipeline.push({
-          $lookup: {
-            from: 'crops',
-            localField: 'crops',
-            foreignField: '_id',
-            as: 'crops',
-          },
-        });
-
-        // lookup created_by (users)
-        pipeline.push({
-          $lookup: {
-            from: 'users',
-            localField: 'created_by',
-            foreignField: '_id',
-            as: 'created_by',
-          },
-        });
-        pipeline.push({ $unwind: { path: '$created_by', preserveNullAndEmptyArrays: true } });
-
-        // lookup state using the actual collection name for the state schema
-        pipeline.push({
-          $lookup: {
-            from: stateSch.collection.name,
-            localField: 'state',
-            foreignField: '_id',
-            as: 'state',
-          },
-        });
-        pipeline.push({ $unwind: { path: '$state', preserveNullAndEmptyArrays: true } });
-
-        const cursor = customerSch.aggregate(pipeline).cursor({ batchSize: 100 }).exec();
-
-        await streamAndWrite(cursor, async (farmer) => await enrichCustomerLocation(farmer));
+        await streamAndWrite(q); // documents are already plain objects with populated fields
         break;
       }
 

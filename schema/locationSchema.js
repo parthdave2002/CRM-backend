@@ -19,4 +19,16 @@ const StateSchema = new mongoose.Schema({
   districts: [DistrictSchema]
 });
 
+// Register sub-models so they are available when other modules call populate by model name.
+// Use guards to avoid OverwriteModelError if they're registered elsewhere.
+if (!mongoose.models.Village) {
+  mongoose.model('Village', VillageSchema);
+}
+if (!mongoose.models.Taluka) {
+  mongoose.model('Taluka', TalukaSchema);
+}
+if (!mongoose.models.District) {
+  mongoose.model('District', DistrictSchema);
+}
+
 module.exports = mongoose.model('State', StateSchema);
