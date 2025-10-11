@@ -1,48 +1,29 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
 const customerSch = require('../../schema/customerSchema');
-const stateSch  = require('../../schema/locationSchema');
 const orderSch = require("../../schema/orderSchema");
 const complainSch = require("../../schema/complainSchema")
 
 const customerController = {};
-
-const findNameFromState = (states, id, type) => {
-  if (!id || !states) return null;
-  const stateArray = Array.isArray(states) ? states : [states];
-
-  for (const state of stateArray) {
-    if (!state.districts) return null;
-
-    for (const district of state.districts) {
-      if (type === "district" && district._id.equals(id)) return district.name;
-
-      for (const taluka of district.talukas) {
-        if (type === "taluka" && taluka._id.equals(id)) return taluka.name;
-
-        for (const village of taluka.villages) {
-          if (type === "village" && village._id.equals(id)) return village.name;
-        }
-      }
-    }
-  }
-  return null;
-};
-
-const enrichCustomerData = (customers, stateData) => {
-  return customers.map((cust) => ({
-    ...cust,
-    district_name: findNameFromState(stateData, cust.district, "district"),
-    taluka_name: findNameFromState(stateData, cust.taluka, "taluka"),
-    village_name: findNameFromState(stateData, cust.village, "village"),
-  }));
-};
 
 customerController.getAllCustomerList = async (req, res, next) => {
   try {
     const { page, size, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
     const query = { ...searchQuery };
     const search = req.query.search?.trim();
+
+       if(req.query.id){
+          const populateFields = [
+              { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
+              { path: 'created_by', model: 'users', select: 'name' },
+              { path: 'state', model: 'State', select: 'name' },
+              { path: 'village', model: 'Village', select: 'name' },
+              { path: 'taluka', model: 'Taluka', select: 'name' },
+              { path: 'district', model: 'District', select: 'name' },
+            ];
+          const user = await customerSch.findById(req.query.id).select(selectQuery).populate(populateFields).lean();
+          return otherHelper.paginationSendResponse(res, httpStatus.OK, true, [user],  null, " Search Data found", page, size, user.length);
+        }
 
     if (search && search !== "null") {
       const searchRegex = new RegExp(search, "i");
@@ -64,17 +45,19 @@ customerController.getAllCustomerList = async (req, res, next) => {
     }
 
     const populateFields = [
-      { path: "crops", model: "crop", select: "name_eng name_guj" },
-      { path: "created_by", model: "users", select: "name" },
+      { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
+      { path: 'created_by', model: 'users', select: 'name' },
+      { path: 'state', model: 'State', select: 'name' },
+      { path: 'village', model: 'Village', select: 'name' },
+      { path: 'taluka', model: 'Taluka', select: 'name' },
+      { path: 'district', model: 'District', select: 'name' },
     ];
 
-    const [customers, totalData, stateData] = await Promise.all([
+    const [customers, totalData] = await Promise.all([
       customerSch.find(query).sort(sortQuery).skip((page - 1) * size).limit(size).populate(populateFields).select("customer_name firstname middlename lastname mobile_number alternate_number smart_phone land_area land_type irrigation_source irrigation_type crops heard_about_agribharat address district taluka village pincode added_at is_deleted created_by" ).lean(),
       customerSch.countDocuments(query),
-      stateSch.find({}).lean(),
     ]);
-    const enrichedData = enrichCustomerData(customers, stateData);
-    return otherHelper.paginationSendResponse( res, httpStatus.OK, true, enrichedData, "Customer Data fetched successfully", page, size, totalData);
+    return otherHelper.paginationSendResponse( res, httpStatus.OK, true, customers, "Customer Data fetched successfully", page, size, totalData);
   } catch (err) {
     next(err);
   }
@@ -95,17 +78,15 @@ customerController.AddCustomerData = async (req, res, next) => {
       customerData.added_at = new Date();
       const newCustomer = await new customerSch(customerData).save();
 
-      const [populatedCustomer, stateData] = await Promise.all([
-        customerSch
+      const populatedCustomer  = customerSch
           .findById(newCustomer._id)
-          .populate({ path: "crops", select: "name_eng name_guj" })
-          .lean(),
-        stateSch.find({}).lean(),
-      ]);
+          .populate([{ path: "crops", select: "name_eng name_guj" },{ path: 'state', model: 'State', select: 'name' },
+            { path: 'village', model: 'Village', select: 'name' },
+            { path: 'taluka', model: 'Taluka', select: 'name' },
+            { path: 'district', model: 'District', select: 'name' }])
+          .lean()
 
-      const enrichedData = enrichCustomerData([populatedCustomer], stateData);
-
-      return otherHelper.sendResponse(res, httpStatus.OK, true, enrichedData, null, 'Customer Created successfully', null);
+      return otherHelper.sendResponse(res, httpStatus.OK, true, populatedCustomer, null, 'Customer Created successfully', null);
     }
   } catch (err) {
     next(err);
@@ -142,31 +123,17 @@ customerController.updateCustomerData = async (req, res, next) => {
     const  populate = [
       { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
       { path: 'created_by', model: 'users', select: 'name' },
-      { path: 'state', model: 'State', select: 'name district' },
+      { path: 'state', model: 'State', select: 'name' },
+            { path: 'village', model: 'Village', select: 'name' },
+            { path: 'taluka', model: 'Taluka', select: 'name' },
+            { path: 'district', model: 'District', select: 'name' },
     ];
     const customer = await customerSch.findById(id);
     if (!customer)   return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, 'Customer not found', null);
 
     const updatedCustomer = await customerSch.findByIdAndUpdate(id, { $set: customerData }, { new: true }).populate(populate);
-    let enrichedCustomer = updatedCustomer.toObject();
-    try {
-      const stateData = await stateSch.findById(updatedCustomer.toObject().state._id).lean();
-
-      if (stateData) {
-        enrichedCustomer.district_name = findNameFromState(stateData, updatedCustomer.district, 'district');
-        enrichedCustomer.taluka_name = findNameFromState(stateData, updatedCustomer.taluka, 'taluka');
-        enrichedCustomer.village_name = findNameFromState(stateData, updatedCustomer.village, 'village');
-      } else {
-        enrichedCustomer.district_name = null;
-        enrichedCustomer.taluka_name = null;
-        enrichedCustomer.village_name = null;
-      }
-    } catch (err) {
-      enrichedCustomer.district_name = null;
-      enrichedCustomer.taluka_name = null;
-      enrichedCustomer.village_name = null;
-    }
-    return otherHelper.sendResponse(res, httpStatus.OK, true, enrichedCustomer, null, 'Customer updated successfully', null);
+  
+    return otherHelper.sendResponse(res, httpStatus.OK, true, updatedCustomer, null, 'Customer updated successfully', null);
   } catch (err) {
     next(err);
   }
@@ -198,7 +165,10 @@ customerController.matchNumber = async (req, res, next) => {
     populate = [
       { path: 'crops', model: 'crop', select: 'name_eng name_guj' },
       { path: 'created_by', model: 'users', select: 'name' },
-      { path: 'state', model: 'State', select: 'name district' },
+      { path: 'state', model: 'State', select: 'name' },
+            { path: 'village', model: 'Village', select: 'name' },
+            { path: 'taluka', model: 'Taluka', select: 'name' },
+            { path: 'district', model: 'District', select: 'name' },
       // { path: 'ref_name', model: 'users', select: 'name', strictPopulate: false },
     ];
     if (!number && !order_id && !complain_id) {
@@ -224,26 +194,7 @@ customerController.matchNumber = async (req, res, next) => {
     }
     if (!customer)   return otherHelper.sendResponse(res, httpStatus.OK, false, null, null, 'Customer not matched', null);
 
-    let enrichedCustomer = customer.toObject();
-    try {
-      const stateData = await stateSch.findById(customer.toObject().state._id).lean();
-
-      if (stateData) {
-        enrichedCustomer.district_name = findNameFromState(stateData, customer.district, 'district');
-        enrichedCustomer.taluka_name = findNameFromState(stateData, customer.taluka, 'taluka');
-        enrichedCustomer.village_name = findNameFromState(stateData, customer.village, 'village');
-      } else {
-        enrichedCustomer.district_name = null;
-        enrichedCustomer.taluka_name = null;
-        enrichedCustomer.village_name = null;
-      }
-    } catch (err) {
-      enrichedCustomer.district_name = null;
-      enrichedCustomer.taluka_name = null;
-      enrichedCustomer.village_name = null;
-    }
-
-    return otherHelper.sendResponse(res, httpStatus.OK, true, enrichedCustomer, null, 'Customer found', null);
+    return otherHelper.sendResponse(res, httpStatus.OK, true, customer, null, 'Customer found', null);
   } catch (err) {
     next(err);
   }

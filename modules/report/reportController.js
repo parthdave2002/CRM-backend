@@ -4,54 +4,8 @@ const orderSch = require('../../schema/orderSchema');
 const leadSch = require('../../schema/leadSchema');
 const advisorSch = require('../../schema/userSchema');
 const customerSch = require('../../schema/customerSchema');
-const stateSch = require('../../schema/locationSchema');
 
 const reportController = {};
-
-function findNameFromState(state, id, type) {
-  if (!id || !state?.districts) return '';
-
-  for (const district of state.districts) {
-    if (type === 'district' && district._id.equals(id)) return district.name;
-
-    if (!district.talukas) continue;
-    for (const taluka of district.talukas) {
-      if (type === 'taluka' && taluka._id.equals(id)) return taluka.name;
-
-      if (!taluka.villages) continue;
-      for (const village of taluka.villages) {
-        if (type === 'village' && village._id.equals(id)) return village.name;
-      }
-    }
-  }
-  return '';
-}
-
-async function enrichCustomerLocation(customer) {
-  if (!customer) return null;
-
-  const baseCustomer = customer.toObject?.() || customer;
-
-  if (!baseCustomer?.state) {
-    return { ...baseCustomer, district_name: '', taluka_name: '', village_name: '' };
-  }
-
-  try {
-    const stateData = baseCustomer.state?.districts?.length
-      ? baseCustomer.state
-      : await stateSch.findById(baseCustomer.state._id).lean();
-
-    return {
-      ...baseCustomer,
-      district_name: findNameFromState(stateData, baseCustomer.district, 'district'),
-      taluka_name: findNameFromState(stateData, baseCustomer.taluka, 'taluka'),
-      village_name: findNameFromState(stateData, baseCustomer.village, 'village'),
-    };
-  } catch (err) {
-    console.error(`Error enriching customer ${baseCustomer._id}:`, err.message);
-    return { ...baseCustomer, district_name: '', taluka_name: '', village_name: '' };
-  }
-}
 
 // reportController.getAllReportList = async (req, res, next) => {
 //   try {
@@ -153,10 +107,21 @@ reportController.getAllReportList = async (req, res, next) => {
 
     switch (type) {
       case "order": {
-        const query = orderSch.find(filter)
+        const query = orderSch
+          .find(filter)
           .populate([
             { path: 'products.id', model: 'product', populate: [{ path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }] },
-            { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode post_office village vaillage_name taluka taluka_name district district_name', populate: [{ path: 'state', model: 'State', select: 'name districts talukas villages' }] },
+            {
+              path: 'customer',
+              model: 'customer',
+              select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode post_office village vaillage_name taluka taluka_name district district_name',
+              populate: [
+                { path: 'state', model: 'State', select: 'name' },
+                { path: 'village', model: 'Village', select: 'name' },
+                { path: 'taluka', model: 'Taluka', select: 'name' },
+                { path: 'district', model: 'District', select: 'name' },
+              ],
+            },
             { path: 'advisor_name', model: 'users', select: 'name' },
             { path: 'coupon', model: 'coupon' },
           ])
@@ -166,12 +131,7 @@ reportController.getAllReportList = async (req, res, next) => {
   const orders = await query;
         totalData = await orderSch.countDocuments(filter);
 
-        data = await Promise.all(
-          orders.map(async (order) => ({
-            ...order,
-            customer: await enrichCustomerLocation(order.customer),
-          }))
-        );
+        data = orders
         break;
       }
 

@@ -3,7 +3,6 @@ const otherHelper = require('../../helper/others.helper');
 const orderSch = require('../../schema/orderSchema');
 const productSch = require('../../schema/productSchema');
 const complainSch = require('../../schema/complainSchema');
-const stateSch = require('../../schema/locationSchema');
 const couponSch = require("../../schema/couponSchema")
 const orderController = {};
 
@@ -13,8 +12,16 @@ orderController.getAllOrderList = async (req, res, next) => {
     let { page = 1, size = 10, populate, selectQuery, searchQuery, sortQuery } = otherHelper.parseFilters(req, 10);
 
     populate = [
-      { path: 'products.id', model: 'product', populate: [  { path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }], },
-      { path: 'customer', model: 'customer', populate: [{ path: 'state', model: 'State', select: 'name' }],
+      { path: 'products.id', model: 'product', populate: [{ path: 'packagingtype', model: 'packing-type', select: 'type_eng type_guj' }] },
+      {
+        path: 'customer',
+        model: 'customer',
+        populate: [
+          { path: 'state', model: 'State', select: 'name' },
+          { path: 'village', model: 'Village', select: 'name' },
+          { path: 'taluka', model: 'Taluka', select: 'name' },
+          { path: 'district', model: 'District', select: 'name' },
+        ],
         select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name',
       },
       { path: 'advisor_name', model: 'users', select: 'name' },
@@ -51,7 +58,12 @@ orderController.getAllOrderList = async (req, res, next) => {
     } else {
       selectQuery = 'order_id order_type  customer advisor_name total_amount status added_at';
       populate = [
-        { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode post_office village vaillage_name  state taluka taluka_name district district_name' },
+        { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode post_office village vaillage_name  state taluka taluka_name district district_name' ,populate: [
+          { path: 'state', model: 'State', select: 'name' },
+          { path: 'village', model: 'Village', select: 'name' },
+          { path: 'taluka', model: 'Taluka', select: 'name' },
+          { path: 'district', model: 'District', select: 'name' },
+        ],},
         { path: 'advisor_name', model: 'users', select: 'name' },
           { path: 'coupon', model: 'coupon' },
       ];
@@ -64,53 +76,6 @@ orderController.getAllOrderList = async (req, res, next) => {
 
     const pulledData = await otherHelper.getQuerySendResponse(orderSch, page, size, sortQuery, searchQuery, selectQuery, next, populate);
     let finalData = pulledData.data;
-
-    // if (req.query.id || req.query.customer_id) {
-      finalData = await Promise.all(
-        pulledData.data.map(async (order) => {
-          const cust = order.customer;
-          if (!cust && !cust?.state) {
-            return {
-              ...order.toObject(),
-              customer: {
-                ...cust?.toObject?.(),
-                district_name: '',
-                taluka_name: '',
-                village_name: '',
-              },
-            };
-          }
-
-          try {
-            const stateData = cust.state?.districts && cust.state?.districts.length ? cust.state : await stateSch.findOne({ _id: order.customer.toObject().state._id }).lean();
-            const districtName = findNameFromState(stateData, cust.district, 'district') || '';
-            const talukaName = findNameFromState(stateData, cust.taluka, 'taluka') || '';
-            const villageName = findNameFromState(stateData, cust.village, 'village') || '';
-
-            return {
-              ...order.toObject(),
-              customer: {
-                ...cust?.toObject?.(),
-                district_name: districtName,
-                taluka_name: talukaName,
-                village_name: villageName,
-              },
-            };
-          } catch (err) {
-            console.error(`Error enriching customer ${cust._id}:`, err.message);
-            return {
-              ...order.toObject(),
-              customer: {
-                ...cust?.toObject?.(),
-                district_name: '',
-                taluka_name: '',
-                village_name: '',
-              },
-            };
-          }
-        }),
-      );
-    // }
 
     return otherHelper.paginationSendResponse(res, httpStatus.OK, true, finalData, 'Order Data retrieved successfully', page, size, pulledData.totalData);
   } catch (err) {
@@ -158,28 +123,6 @@ orderController.ReturnProductAdd = async (req, res, next) => {
     session.endSession();
   }
 };
-
-function findNameFromState(state, id, type) {
-  if (!id || !state || !state.districts) return null;
-
-  for (const district of state.districts) {
-    if (type === 'district' && district._id.equals(id)) {
-      return district.name;
-    }
-    if (!district.talukas) continue;
-    for (const taluka of district.talukas) {
-      if (type === 'taluka' && taluka._id.equals(id)) {
-        return taluka.name;
-      }
-      if (!taluka.villages) continue;
-      for (const village of taluka.villages) {
-        if (type === 'village' && village._id.equals(id)) {
-          return village.name;
-        }
-      }
-    }
-  }
-}
 
 orderController.AddOrUpdateOrderData = async (req, res, next) => {
   const session = await orderSch.startSession();
@@ -454,7 +397,12 @@ orderController.getFilteredOrderList = async (req, res, next) => {
 
     const populate = [
       { path: 'products.id', model: 'product' },
-      { path: 'customer', model: 'customer',  select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name',},
+      { path: 'customer', model: 'customer',  select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name',populate: [
+          { path: 'state', model: 'State', select: 'name' },
+          { path: 'village', model: 'Village', select: 'name' },
+          { path: 'taluka', model: 'Taluka', select: 'name' },
+          { path: 'district', model: 'District', select: 'name' },
+        ]},
       { path: 'advisor_name', model: 'users',   select: 'name'},
     ];
 
@@ -504,7 +452,12 @@ orderController.GetCallBacks = async (req, res, next) => {
           mark_as_done: false,
           future_order_date: { $lt: endDate },
         })
-        .populate([{ path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name' }]);
+        .populate([{ path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name' ,populate: [
+          { path: 'state', model: 'State', select: 'name' },
+          { path: 'village', model: 'Village', select: 'name' },
+          { path: 'taluka', model: 'Taluka', select: 'name' },
+          { path: 'district', model: 'District', select: 'name' },
+        ]}]);
 
       // const ordersWithCounts = await Promise.all(
       //   orders.map(async (order) => {
@@ -539,7 +492,12 @@ orderController.GetCallBacks = async (req, res, next) => {
           order_type: 'future',
           future_order_date: { $gt: today },
         })
-        .populate([{ path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name' }]);
+        .populate([{ path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode village vaillage_name taluka taluka_name district district_name',populate: [
+          { path: 'state', model: 'State', select: 'name' },
+          { path: 'village', model: 'Village', select: 'name' },
+          { path: 'taluka', model: 'Taluka', select: 'name' },
+          { path: 'district', model: 'District', select: 'name' },
+        ] }]);
 
       // return otherHelper.sendResponse(res, httpStatus.OK, true, orders, null, 'Future Orders retrieved successfully!', null);
     }

@@ -5,8 +5,7 @@ const productSch = require("../../schema/productSchema");
 const orderSch = require("../../schema/orderSchema");
 const complainSch = require("../../schema/complainSchema")
 const customerSch  =require("../../schema/customerSchema");
-const stateSch = require("../../schema/locationSchema")
-
+const stateSch = require('../../schema/locationSchema');
 const adminDashboardController = {};
 
 const getPeriodDates = (period) => {
@@ -52,34 +51,23 @@ const getTotalForPeriod = async (model, dateField, periods, getRevenue = false, 
   return totals;
 };
 
-const createStateLookupMaps = (states) => {
-  const districtMap = new Map();
-  const talukaMap = new Map();
-  const villageMap = new Map();
-
-  states.forEach((state) => {
-    state.districts.forEach((district) => {
-      districtMap.set(district._id.toString(), district.name);
-
-      district.talukas.forEach((taluka) => {
-        talukaMap.set(taluka._id.toString(), taluka.name);
-
-        taluka.villages.forEach((village) => {
-          villageMap.set(village._id.toString(), village.name);
-        });
-      });
-    });
-  });
-
-  return { districtMap, talukaMap, villageMap };
-};
-
 adminDashboardController.getDashboardData = async (req, res, next) => {
   try {
     const periods = ['daily', 'weekly', 'monthly'];
     const productQuery = await productSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).populate([{ path: 'categories', model: 'categories', select: 'name_guj name_eng' }]).select('name categories avl_qty price hsn_code batch_no added_at').lean();
     const userQuery  = await userSch.find({ is_deleted: false }).sort({ added_at: -1 }).limit(5).select('name email is_active user_pic added_at').lean();
-    const customerQuery  = await customerSch.find().sort({ added_at: -1 }).limit(5).select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted').lean();
+    const customerQuery = await customerSch
+      .find()
+      .sort({ added_at: -1 })
+      .limit(5)
+      .select('customer_name  firstname middlename lastname district taluka village mobile_number is_deleted')
+      .populate([
+        { path: 'state', model: 'State', select: 'name' },
+        { path: 'village', model: 'Village', select: 'name' },
+        { path: 'taluka', model: 'Taluka', select: 'name' },
+        { path: 'district', model: 'District', select: 'name' },
+      ])
+      .lean();
     const orderQuery  = await orderSch.find().sort({ added_at: -1 }).limit(10).select('order_id customer advisor_name total_amount status added_at')
       .populate([
         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname' },
@@ -138,15 +126,7 @@ adminDashboardController.getDashboardData = async (req, res, next) => {
       getTotalForPeriod(orderSch, 'added_at', periods, true, { order_type: 'confirm', status: 'return' }),
     ]);
 
-    const { districtMap, talukaMap, villageMap } = createStateLookupMaps(stateData);
-    const enrichedData = customers.map((cust) => ({
-      ...cust,
-      district: { _id: cust.district, name: districtMap.get(cust.district?.toString()) || null },
-      taluka: { _id: cust.taluka, name: talukaMap.get(cust.taluka?.toString()) || null },
-      village: { _id: cust.village, name: villageMap.get(cust.village?.toString()) || null },
-    }));
-
-    return otherHelper.sendResponse( res, httpStatus.OK, true, { products, users, customers: enrichedData || [], orders, returnOrdersDetails, complainDetails, totalProducts, totalOrders, totalUsers, totalCustomers, totalComplain, totalReturnOrder,  totalReturnOrderRevenue, totalRevenue,}, null, 'Dashboard data fetched successfully', null,);
+    return otherHelper.sendResponse( res, httpStatus.OK, true, { products, users, customers: customers || [], orders, returnOrdersDetails, complainDetails, totalProducts, totalOrders, totalUsers, totalCustomers, totalComplain, totalReturnOrder,  totalReturnOrderRevenue, totalRevenue,}, null, 'Dashboard data fetched successfully', null,);
   } catch (err) {
     next(err);
   }
