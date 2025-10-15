@@ -78,7 +78,7 @@ customerController.AddCustomerData = async (req, res, next) => {
       customerData.added_at = new Date();
       const newCustomer = await new customerSch(customerData).save();
 
-      const populatedCustomer  = customerSch
+      const populatedCustomer  =  await customerSch
           .findById(newCustomer._id)
           .populate([{ path: "crops", select: "name_eng name_guj" },{ path: 'state', model: 'State', select: 'name' },
             { path: 'village', model: 'Village', select: 'name' },
