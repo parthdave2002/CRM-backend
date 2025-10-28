@@ -1,12 +1,16 @@
 const httpStatus = require('http-status');
 const otherHelper = require('../../helper/others.helper');
-const locationSch = require('../../schema/locationSchema');
+const State = require('../../schema/locationSchema');
+const District = require('../../schema/districtSchema');
+const Taluka = require('../../schema/talukaSchema');
+const Village = require('../../schema/villageSchema');
+
 const locationController = {};
 
 locationController.getAllState = async (req, res, next) => {
   try {
-    const states = await locationSch.find().select('name');
-    return otherHelper.sendResponse(res, httpStatus.OK, true, states, null, "State data successfully fetched", null);
+    const states = await State.find().select('_id name').sort({ name: 1 });
+    return otherHelper.sendResponse(res, httpStatus.OK, true, states, null, 'State data successfully fetched', null);
   } catch (err) {
     next(err);
   }
@@ -15,11 +19,17 @@ locationController.getAllState = async (req, res, next) => {
 locationController.getAllDistrict = async (req, res, next) => {
   try {
     const { stateId } = req.query;
-    const state = await locationSch.findById(stateId).select('districts.name districts._id');
-    if (!state) {
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "State not found", null);
+    if (!stateId) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'stateId is required', null);
     }
-    return otherHelper.sendResponse(res, httpStatus.OK, true, state.districts, null, "District data successfully fetched", null);
+
+    const districts = await District.find({ state: stateId }).select('_id name').sort({ name: 1 });
+
+    if (!districts.length) {
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, [], null, 'No districts found for this state', null);
+    }
+
+    return otherHelper.sendResponse(res, httpStatus.OK, true, districts, null, 'District data successfully fetched', null);
   } catch (err) {
     next(err);
   }
@@ -27,20 +37,18 @@ locationController.getAllDistrict = async (req, res, next) => {
 
 locationController.getAllTaluka = async (req, res, next) => {
   try {
-    const { stateId, districtId } = req.query;
-    const state = await locationSch.findById(stateId);
-    if (!state) {
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "State not found", null);
+    const { districtId } = req.query;
+    if (!districtId) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'districtId is required', null);
     }
-    const district = state.districts.id(districtId)
-    if (!district) {
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "District not found", null);
+
+    const talukas = await Taluka.find({ district: districtId }).select('_id name').sort({ name: 1 });
+
+    if (!talukas.length) {
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, [], null, 'No talukas found for this district', null);
     }
-    const talukaList = district.talukas.map(taluka => ({
-      _id: taluka._id,
-      name: taluka.name
-    }));
-    return otherHelper.sendResponse(res, httpStatus.OK, true, talukaList, null, "Taluka data successfully fetched", null);
+
+    return otherHelper.sendResponse(res, httpStatus.OK, true, talukas, null, 'Taluka data successfully fetched', null);
   } catch (err) {
     next(err);
   }
@@ -48,20 +56,18 @@ locationController.getAllTaluka = async (req, res, next) => {
 
 locationController.getAllVillage = async (req, res, next) => {
   try {
-    const { stateId, districtId, talukaId } = req.query;
-    const state = await locationSch.findById(stateId);
-    if (!state) {
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "State not found", null);
+    const { talukaId } = req.query;
+    if (!talukaId) {
+      return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'talukaId is required', null);
     }
-    const district = state.districts.find(d => d._id.toString() === districtId);
-    if (!district) {
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "District not found", null);
+
+    const villages = await Village.find({ taluka: talukaId }).select('_id name pincode').sort({ name: 1 });
+
+    if (!villages.length) {
+      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, [], null, 'No villages found for this taluka', null);
     }
-    const taluka = district.talukas.find(t => t._id.toString() === talukaId);
-    if (!taluka) {
-      return otherHelper.sendResponse(res, httpStatus.NOT_FOUND, false, null, null, "Taluka not found", null);
-    }
-    return otherHelper.sendResponse(res, httpStatus.OK, true, taluka.villages, null, "Village data successfully fetched", null);
+
+    return otherHelper.sendResponse(res, httpStatus.OK, true, villages, null, 'Village data successfully fetched', null);
   } catch (err) {
     next(err);
   }

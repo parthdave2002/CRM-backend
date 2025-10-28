@@ -3,9 +3,9 @@ const Schema = mongoose.Schema;
 
 const villageSchema = new Schema(
     {
-        _id: { type: Schema.Types.ObjectId },
         name: { type: String, required: true, trim: true },
         taluka: { type: Schema.Types.ObjectId, ref: 'Taluka', required: true },
+        pincode: { type: Number, required: false },
     }
 );
 
