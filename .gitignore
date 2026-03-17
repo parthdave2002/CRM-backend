@@ -1,0 +1,15 @@
+coverage
+build
+dist
+node_modules
+stats.json
+package-lock.json
+yarn.lock
+
+.DS_Store
+npm-debug.log
+.idea
+config/
+
+.env
+.env.*
