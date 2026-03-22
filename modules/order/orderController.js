@@ -45,7 +45,7 @@ orderController.getAllOrderList = async (req, res, next) => {
     } else if (req.query.id && req.query.user_id) {
       searchQuery = { _id: req.query.id, advisor_name: req.query.user_id };
     } else if (req.query.id) {
-      selectQuery = 'order_id order_type products customer coupon  advisor_name total_amount status added_at updated_at';
+      selectQuery = 'order_id order_type round_off products customer coupon  advisor_name total_amount status added_at updated_at';
       const orderId = req.query.id;
       searchQuery = { _id: orderId };
     } else if (req.query.user_id) {
@@ -57,7 +57,7 @@ orderController.getAllOrderList = async (req, res, next) => {
     } else if (req.query.returnOrder) {
       searchQuery = { status: 'return',mark_as_return: false };
     } else {
-      selectQuery = 'order_id order_type  customer advisor_name total_amount status added_at delivery_through  delivery_by tracking_number ';
+      selectQuery = 'order_id order_type round_off customer advisor_name total_amount status added_at delivery_through  delivery_by tracking_number ';
       populate = [
         { path: 'customer', model: 'customer', select: 'customer_name firstname middlename lastname address alternate_number mobile_number pincode post_office village vaillage_name  state taluka taluka_name district district_name' ,populate: [
           { path: 'state', model: 'State', select: 'name' },
@@ -280,6 +280,10 @@ orderController.AddOrUpdateOrderData = async (req, res, next) => {
       order.products = updatedProducts;
       order.total_amount = totalAmount;
       order.advisor_name = req.user.id;
+
+      if (order.round_off) {
+        order.total_amount = Math.round(order.total_amount + order.round_off);
+      }
       const newOrder = new orderSch(order);
       await newOrder.save({ session });
       await session.commitTransaction();
@@ -408,6 +412,10 @@ orderController.UpdateOrder = async (req, res, next) => {
       updatedData.coupon = coupon._id;
     }
     updatedData.total_amount = totalAmount;
+
+    if (updatedData.round_off) {
+        updatedData.total_amount = Math.round(updatedData.total_amount + updatedData.round_off);
+      }
     updatedData.updated_at = Date.now();
     const updatedOrder = await orderSch.findByIdAndUpdate(existingOrder._id, { $set: updatedData }, { new: true }).session(session);
     await session.commitTransaction();
