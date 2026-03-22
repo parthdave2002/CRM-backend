@@ -37,6 +37,7 @@ const orderSchema = new schema({
   customer: { type: schema.Types.ObjectId, required: true, ref: 'customer' },
   advisor_name: { type: schema.Types.ObjectId, required: true, ref: 'user' },
   total_amount: { type: Number, required: true },
+  round_off: { type: Number, default: 0 },
   order_type: { type: String, default: 'confirm', enum: ['confirm', 'future'] },
   future_order_date: { type: Date, required: false },
   coupon: { type: mongoose.Schema.Types.ObjectId, ref: 'coupon' },
