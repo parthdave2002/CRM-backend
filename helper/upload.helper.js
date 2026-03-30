@@ -41,15 +41,27 @@ uploaderHelper.uploadFiles = (folderName = 'uploads', fieldName = 'file') => {
   return async (req, res, next) => {
     upload(req, res, async (err) => {
       if (err) {
-        const msg =
-          err.code === 'LIMIT_FILE_SIZE'
-            ? `File must be smaller than ${maxFileSize / (1024 * 1024)}MB`
-            : err.message;
-        return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, msg, null);
+        let status = httpStatus.BAD_REQUEST;
+        let msg = err.message || 'File upload failed';
+
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          status = httpStatus.REQUEST_ENTITY_TOO_LARGE; // 413
+          msg = `File must be smaller than ${maxFileSize / (1024 * 1024)}MB`;
+        } else if (err.status === 413 || err.statusCode === 413 || err.code === 'LIMIT_UNEXPECTED_FILE') {
+          status = httpStatus.REQUEST_ENTITY_TOO_LARGE;
+          msg = 'Uploaded payload is too large';
+        }
+
+        return otherHelper.sendResponse(res, status, false, null, null, msg, null);
       }
 
-      if (!req.files || req.files.length === 0) return next(); 
+      // Normalize files so empty or null pictures don't produce [null] downstream.
+      if (!req.files || req.files.length === 0) {
+        req.files = [];
+        return next();
+      }
 
+      req.files = req.files.filter((f) => f != null && f.buffer);
       try {
         const uploadedLocations = [];
         
