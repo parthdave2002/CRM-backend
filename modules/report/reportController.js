@@ -185,15 +185,15 @@ reportController.getAllReportList = async (req, res, next) => {
 
 reportController.exportData = async (req, res, next) => {
   try {
-    const { type, subtype, startDate, endDate } = req.query;
+    const { type, subtype, startDate, endDate, page, size } = req.query;
 
     if (!type) return otherHelper.sendResponse(res, httpStatus.BAD_REQUEST, false, null, null, 'Missing report type', null);
 
     const filter = {};
     if (startDate) {
       filter.added_at = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate || Date.now()),
+        $gte: new Date(new Date(startDate).setHours(0,0,0,0)),
+        $lte: new Date(new Date(endDate || Date.now()).setHours(23,59,59,999))
       };
     }
 
@@ -238,10 +238,16 @@ reportController.exportData = async (req, res, next) => {
             { path: 'advisor_name', model: 'users', select: 'name' },
             { path: 'coupon', model: 'coupon' },
           ])
-          .lean()
-          .cursor();
+          .lean();
 
-        await streamAndWrite(q);
+        if (page && size) {
+          const pageNum = parseInt(page) || 1;
+          const sizeNum = Math.min(parseInt(size) || 10, 500);
+          const skip = (pageNum - 1) * sizeNum;
+          q.skip(skip).limit(sizeNum);
+        }
+
+        await streamAndWrite(q.cursor());
         break;
       }
 
@@ -256,10 +262,16 @@ reportController.exportData = async (req, res, next) => {
             { path: 'taluka', model: 'Taluka', select: 'name' },
             { path: 'district', model: 'District', select: 'name' },
           ])
-          .lean()
-          .cursor();
+          .lean();
 
-        await streamAndWrite(q); // documents are already plain objects with populated fields
+        if (page && size) {
+          const pageNum = parseInt(page) || 1;
+          const sizeNum = Math.min(parseInt(size) || 10, 500);
+          const skip = (pageNum - 1) * sizeNum;
+          q.skip(skip).limit(sizeNum);
+        }
+
+        await streamAndWrite(q.cursor());
         break;
       }
 
@@ -268,17 +280,31 @@ reportController.exportData = async (req, res, next) => {
         const q = advisorSch.find(filter)
           .populate([{ path: 'role', model: 'roles', select: 'role_title' }])
           .select('aadhar_card pan_card bank_passbook is_active _id name email password gender mobile_no date_of_joining date_of_birth emergency_mobile_no emergency_contact_person address role added_at')
-          .lean()
-          .cursor();
+          .lean();
 
-        await streamAndWrite(q);
+        if (page && size) {
+          const pageNum = parseInt(page) || 1;
+          const sizeNum = Math.min(parseInt(size) || 10, 500);
+          const skip = (pageNum - 1) * sizeNum;
+          q.skip(skip).limit(sizeNum);
+        }
+
+        await streamAndWrite(q.cursor());
         break;
       }
 
       case 'lead': {
         if (subtype) filter.type = subtype;
-        const q = leadSch.find(filter).lean().cursor();
-        await streamAndWrite(q);
+        const q = leadSch.find(filter).lean();
+
+        if (page && size) {
+          const pageNum = parseInt(page) || 1;
+          const sizeNum = Math.min(parseInt(size) || 10, 500);
+          const skip = (pageNum - 1) * sizeNum;
+          q.skip(skip).limit(sizeNum);
+        }
+
+        await streamAndWrite(q.cursor());
         break;
       }
 

@@ -115,9 +115,12 @@ productController.getAllProductList = async (req, res, next) => {
 productController.AddProductData = async (req, res, next) => {
   try {
     const Product = req.body;
-    if (req.files) {
-      Product.product_pics = req.files.map(file => file.filename);
+    if (Array.isArray(req.files) && req.files.length > 0) {
+      Product.product_pics = req.files
+        .filter((file) => file && (file.location || file.filename || file.path))
+        .map((file) => file.location || file.filename || file.path);
     }
+
     if (Product.description && typeof Product.description === "string") {
       try {
         Product.description = JSON.parse(Product.description);
