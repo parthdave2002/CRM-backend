@@ -51,13 +51,16 @@ productController.getAllProductList = async (req, res, next) => {
     }
 
     if (req.query.search && req.query.search !== 'null') {
-      const regex = { $regex: req.query.search, $options: 'i' };
-      const isValidObjectId = mongoose.Types.ObjectId.isValid(req.query.search);
+      const searchValue = req.query.search.toString().trim();
+      const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedSearchValue = escapeRegex(searchValue);
+      const regex = { $regex: escapedSearchValue, $options: 'i' };
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(searchValue);
 
       let categoryFilter = [];
 
       if (isValidObjectId) {
-        categoryFilter.push({ _id: mongoose.Types.ObjectId(req.query.search) });
+        categoryFilter.push({ _id: mongoose.Types.ObjectId(searchValue) });
       } else {
         categoryFilter.push({ name_eng: regex }, { name_guj: regex });
       }
